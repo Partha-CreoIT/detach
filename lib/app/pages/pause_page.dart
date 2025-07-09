@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:wave/wave.dart';
 import 'package:wave/config.dart';
+import 'package:figma_squircle/figma_squircle.dart';
 
 class PausePage extends StatefulWidget {
   const PausePage({super.key});
@@ -102,18 +103,18 @@ class _PausePageState extends State<PausePage>
       body: SafeArea(
         child: Stack(
           children: [
-            if(!_showButtons)
-            const Center(
-              child: Text(
-                "It’s time to take a breath",
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+            if (!_showButtons)
+              const Center(
+                child: Text(
+                  "It’s time to take a breath",
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
               ),
-            ),
             AnimatedBuilder(
               animation: _waterAnimation,
               builder: (context, child) {
@@ -179,8 +180,10 @@ class _PausePageState extends State<PausePage>
                       style: FilledButton.styleFrom(
                         backgroundColor: const Color(0xFF6B75F2),
                         minimumSize: const Size(double.infinity, 56),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
+                        shape: SmoothRectangleBorder(
+                          borderRadius: SmoothBorderRadius.all(
+                            SmoothRadius(cornerRadius: 16, cornerSmoothing: 1),
+                          ),
                         ),
                       ),
                       child: Text(
@@ -201,6 +204,11 @@ class _PausePageState extends State<PausePage>
                       style: TextButton.styleFrom(
                         minimumSize: const Size(double.infinity, 44),
                         foregroundColor: const Color(0xFF6B75F2),
+                        shape: SmoothRectangleBorder(
+                          borderRadius: SmoothBorderRadius.all(
+                            SmoothRadius(cornerRadius: 16, cornerSmoothing: 1),
+                          ),
+                        ),
                       ),
                       child: Text('Continue on ${appName.capitalizeFirst}'),
                     ),

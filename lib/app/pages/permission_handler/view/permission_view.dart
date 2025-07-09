@@ -12,7 +12,13 @@ class PermissionView extends GetView<PermissionController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Configure Permissions')),
+      appBar: AppBar(
+        title: const Text('Configure Permissions'),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Get.offAllNamed('/home'),
+        ),
+      ),
       body: SafeArea(
         child: PageView(
           controller: controller.pageController,

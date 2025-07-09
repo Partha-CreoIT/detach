@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controller/home_controller.dart';
+import 'package:figma_squircle/figma_squircle.dart';
 
 class OverviewPage extends GetView<HomeController> {
   const OverviewPage({super.key});
@@ -23,8 +24,6 @@ class OverviewPage extends GetView<HomeController> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            _buildChartCard(context),
-            const SizedBox(height: 20),
             _buildInfoCard(context),
             const SizedBox(height: 20),
             _buildAppsCard(context),
@@ -37,37 +36,14 @@ class OverviewPage extends GetView<HomeController> {
   Widget _buildCard({required Widget child, required BuildContext context}) {
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16.0),
+      shape: SmoothRectangleBorder(
+        borderRadius: SmoothBorderRadius.all(
+          SmoothRadius(cornerRadius: 16, cornerSmoothing: 1),
+        ),
         side: BorderSide(color: Colors.grey.shade300, width: 1),
       ),
       color: Theme.of(context).colorScheme.surface,
       child: Padding(padding: const EdgeInsets.all(16.0), child: child),
-    );
-  }
-
-  Widget _buildChartCard(BuildContext context) {
-    return _buildCard(
-      context: context,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // This is a placeholder for the chart
-          Container(
-            height: 150,
-            color: Colors.grey[200],
-            child: const Center(child: Text('Chart Placeholder')),
-          ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () {},
-              child: const Text('View Full Statistics'),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -132,6 +108,13 @@ class OverviewPage extends GetView<HomeController> {
           ),
           TextButton(
             onPressed: () => controller.goToAddApps(),
+            style: TextButton.styleFrom(
+              shape: SmoothRectangleBorder(
+                borderRadius: SmoothBorderRadius.all(
+                  SmoothRadius(cornerRadius: 16, cornerSmoothing: 1),
+                ),
+              ),
+            ),
             child: const Text('Add Apps'),
           ),
         ],

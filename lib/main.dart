@@ -6,10 +6,16 @@ import 'package:detach/app/pages/pause_page.dart';
 import 'package:detach/app/pages/permission_handler/bindings/permission_binding.dart';
 import 'package:detach/app/pages/permission_handler/view/permission_view.dart';
 import 'package:detach/app/pages/splash_page.dart';
+import 'package:detach/services/theme_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize theme service
+  Get.put(ThemeService());
+
   runApp(const DetachApp());
 }
 
@@ -18,32 +24,34 @@ class DetachApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetMaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Detach',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      getPages: [
-        GetPage(name: '/', page: () => const SplashPage()),
-        GetPage(
-          name: '/permission',
-          page: () => const PermissionView(),
-          binding: PermissionBinding(),
-        ),
-        GetPage(
-          name: '/apps',
-          page: () => const AppListView(),
-          binding: AppListBinding(),
-        ),
-        GetPage(
-          name: '/home',
-          page: () => const HomeView(),
-          binding: HomeBinding(),
-        ),
-        GetPage(name: '/pause', page: () => const PausePage()),
-      ],
+    return GetBuilder<ThemeService>(
+      builder:
+          (themeService) => GetMaterialApp(
+            debugShowCheckedModeBanner: false,
+            title: 'Detach',
+            themeMode: themeService.themeMode.value,
+            theme: ThemeService.lightTheme,
+            darkTheme: ThemeService.darkTheme,
+            getPages: [
+              GetPage(name: '/', page: () => const SplashPage()),
+              GetPage(
+                name: '/permission',
+                page: () => const PermissionView(),
+                binding: PermissionBinding(),
+              ),
+              GetPage(
+                name: '/apps',
+                page: () => const AppListView(),
+                binding: AppListBinding(),
+              ),
+              GetPage(
+                name: '/home',
+                page: () => const HomeView(),
+                binding: HomeBinding(),
+              ),
+              GetPage(name: '/pause', page: () => const PausePage()),
+            ],
+          ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:detach/app/pages/permission_handler/controller/permission_controller.dart';
+import 'package:figma_squircle/figma_squircle.dart';
 
 class PermissionOverlayView extends GetView<PermissionController> {
   const PermissionOverlayView({super.key});
@@ -31,6 +32,13 @@ class PermissionOverlayView extends GetView<PermissionController> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () => controller.openOverlaySettings(),
+              style: ElevatedButton.styleFrom(
+                shape: SmoothRectangleBorder(
+                  borderRadius: SmoothBorderRadius.all(
+                    SmoothRadius(cornerRadius: 16, cornerSmoothing: 1),
+                  ),
+                ),
+              ),
               child: const Text('Grant overlay permission'),
             ),
           ),

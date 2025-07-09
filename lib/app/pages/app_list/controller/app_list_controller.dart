@@ -3,12 +3,14 @@ import 'package:get/get.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:detach/services/permission_service.dart';
 
 class AppListController extends GetxController {
   final RxList<AppInfo> allApps = <AppInfo>[].obs;
   final RxList<String> selectedAppPackages = <String>[].obs;
   final RxList<AppInfo> filteredApps = <AppInfo>[].obs;
   final RxBool isLoading = true.obs;
+  final RxBool showSelectedApps = false.obs;
 
   @override
   void onInit() {
@@ -72,5 +74,22 @@ class AppListController extends GetxController {
 
   void goBack() {
     Get.back(result: true);
+  }
+
+  Future<void> goToAddAppsWithPermissionCheck() async {
+    final permissionService = PermissionService();
+    final hasUsage = await permissionService.hasUsagePermission();
+    final hasAccessibility =
+        await permissionService.hasAccessibilityPermission();
+    final hasOverlay = await permissionService.hasOverlayPermission();
+    final hasBattery = await permissionService.hasBatteryOptimizationIgnored();
+    if (!hasUsage || !hasAccessibility || !hasOverlay || !hasBattery) {
+      Get.toNamed('/permission');
+      return;
+    }
+    final result = await Get.toNamed('/apps');
+    if (result == true) {
+      // Optionally reload limited apps count or other state here
+    }
   }
 }

@@ -39,12 +39,13 @@ class AppListView extends GetView<AppListController> {
 
         return Column(
           children: [
-            _buildSearchBar(),
+            _buildSearchBar(context),
             Expanded(
               child: CustomScrollView(
                 slivers: [
-                  if (selectedApps.isNotEmpty) ...[
-                    const SliverToBoxAdapter(
+                  if (controller.showSelectedApps.value &&
+                      selectedApps.isNotEmpty) ...[
+                    SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal: 16,
@@ -55,21 +56,23 @@ class AppListView extends GetView<AppListController> {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ),
                     ),
                     SliverList(
                       delegate: SliverChildBuilderDelegate(
-                        (context, index) => _buildAppTile(selectedApps[index]),
+                        (context, index) =>
+                            _buildAppTile(context, selectedApps[index]),
                         childCount: selectedApps.length,
                       ),
                     ),
                     const SliverToBoxAdapter(child: Divider(height: 32)),
                   ],
-                  const SliverToBoxAdapter(
+                  SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 8,
                       ),
@@ -78,13 +81,15 @@ class AppListView extends GetView<AppListController> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ),
                   ),
                   SliverList(
                     delegate: SliverChildBuilderDelegate(
-                      (context, index) => _buildAppTile(otherApps[index]),
+                      (context, index) =>
+                          _buildAppTile(context, otherApps[index]),
                       childCount: otherApps.length,
                     ),
                   ),
@@ -98,7 +103,12 @@ class AppListView extends GetView<AppListController> {
         () =>
             controller.selectedAppPackages.isNotEmpty
                 ? FloatingActionButton.extended(
-                  onPressed: controller.saveAndStartService,
+                  onPressed: () {
+                    controller.showSelectedApps.value = true;
+                    Future.delayed(const Duration(seconds: 2), () {
+                      controller.saveAndStartService();
+                    });
+                  },
                   label: const Text('Continue'),
                   icon: const Icon(Icons.check),
                 )
@@ -107,26 +117,33 @@ class AppListView extends GetView<AppListController> {
     );
   }
 
-  Widget _buildSearchBar() {
+  Widget _buildSearchBar(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: TextField(
         onChanged: controller.filterApps,
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
         decoration: InputDecoration(
           hintText: 'Search apps...',
-          prefixIcon: const Icon(Icons.search),
+          hintStyle: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(30.0),
             borderSide: BorderSide.none,
           ),
           filled: true,
-          fillColor: Colors.grey[200],
+          fillColor: Theme.of(context).colorScheme.surfaceVariant,
         ),
       ),
     );
   }
 
-  Widget _buildAppTile(AppInfo app) {
+  Widget _buildAppTile(BuildContext context, AppInfo app) {
     return Obx(() {
       final isSelected = controller.selectedAppPackages.contains(
         app.packageName,
@@ -139,12 +156,14 @@ class AppListView extends GetView<AppListController> {
         title: Text(app.name),
         subtitle: Text(
           app.packageName,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
-        trailing: Checkbox(
+        trailing: Switch(
           value: isSelected,
           onChanged: (_) => controller.toggleAppSelection(app),
-          shape: const CircleBorder(),
         ),
         onTap: () => controller.toggleAppSelection(app),
       );

@@ -2,17 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controller/home_controller.dart';
 import 'overview_page.dart';
+import 'profile_page.dart';
 
 class HomeView extends GetView<HomeController> {
   const HomeView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> pages = [
-      const OverviewPage(),
-      const Center(child: Text('Statistics')), // Placeholder
-      const Center(child: Text('Customize')), // Placeholder
-    ];
+    final List<Widget> pages = [const OverviewPage(), const ProfilePage()];
 
     return Scaffold(
       body: Obx(() => pages[controller.tabIndex.value]),
@@ -27,14 +24,9 @@ class HomeView extends GetView<HomeController> {
               label: 'Overview',
             ),
             NavigationDestination(
-              icon: Icon(Icons.bar_chart_outlined),
-              selectedIcon: Icon(Icons.bar_chart),
-              label: 'Statistics',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.tune_outlined),
-              selectedIcon: Icon(Icons.tune),
-              label: 'Customize',
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person),
+              label: 'Profile',
             ),
           ],
         ),
