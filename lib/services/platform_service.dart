@@ -1,0 +1,63 @@
+import 'dart:async';
+import 'package:flutter/services.dart';
+
+class PlatformService {
+  static const MethodChannel _channel = MethodChannel(
+    'com.detach.app/permissions',
+  );
+
+  /// Opens Usage Access settings screen
+  static Future<void> openUsageSettings() async {
+    try {
+      await _channel.invokeMethod('openUsageSettings');
+    } catch (e) {
+      print("Error opening usage settings: $e");
+    }
+  }
+
+  /// Opens Accessibility settings screen
+  static Future<void> openAccessibilitySettings() async {
+    try {
+      await _channel.invokeMethod('openAccessibilitySettings');
+    } catch (e) {
+      print("Error opening accessibility settings: $e");
+    }
+  }
+
+  /// Opens Overlay permission settings screen
+  static Future<void> openOverlaySettings() async {
+    try {
+      await _channel.invokeMethod('openOverlaySettings');
+    } catch (e) {
+      print("Error opening overlay settings: $e");
+    }
+  }
+
+  /// Opens Battery optimization settings screen
+  static Future<void> openBatteryOptimizationSettings() async {
+    try {
+      await _channel.invokeMethod('openBatterySettings');
+    } catch (e) {
+      print("Error opening battery settings: $e");
+    }
+  }
+
+  /// Starts the Android foreground service to monitor & block apps
+  static Future<void> startBlockerService(List<String> blockedApps) async {
+    try {
+      await _channel.invokeMethod('startBlockerService', {
+        'blockedApps': blockedApps,
+      });
+    } catch (e) {
+      print("Error starting blocker service: $e");
+    }
+  }
+
+  static Future<void> launchApp(String packageName) async {
+    try {
+      await _channel.invokeMethod('launchApp', {'packageName': packageName});
+    } catch (e) {
+      // Handle error
+    }
+  }
+}

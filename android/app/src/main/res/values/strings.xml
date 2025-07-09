@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Detach</string>
+    <string name="accessibility_service_description">Detach Accessibility Service</string>
+</resources>

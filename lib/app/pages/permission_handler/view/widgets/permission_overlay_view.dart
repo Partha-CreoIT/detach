@@ -1,0 +1,41 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:detach/app/pages/permission_handler/controller/permission_controller.dart';
+
+class PermissionOverlayView extends GetView<PermissionController> {
+  const PermissionOverlayView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                'Overlay Permission',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Detach needs permission to draw over other apps in order to display a blocking screen '
+                'when you open a restricted app. Please enable this in settings.',
+                style: TextStyle(fontSize: 16),
+              ),
+            ],
+          ),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => controller.openOverlaySettings(),
+              child: const Text('Grant overlay permission'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
