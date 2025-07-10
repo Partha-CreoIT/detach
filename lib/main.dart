@@ -7,14 +7,16 @@ import 'package:detach/app/pages/permission_handler/bindings/permission_binding.
 import 'package:detach/app/pages/permission_handler/view/permission_view.dart';
 import 'package:detach/app/pages/splash_page.dart';
 import 'package:detach/services/theme_service.dart';
+import 'package:detach/services/analytics_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize theme service
+  // Initialize services
   Get.put(ThemeService());
+  Get.put(AnalyticsService());
 
   runApp(const DetachApp());
 }
@@ -32,6 +34,9 @@ class DetachApp extends StatelessWidget {
             themeMode: themeService.themeMode.value,
             theme: ThemeService.lightTheme,
             darkTheme: ThemeService.darkTheme,
+            navigatorObservers: [
+              AnalyticsService.to.firebaseAnalyticsObserver ?? GetObserver(),
+            ],
             getPages: [
               GetPage(name: '/', page: () => const SplashPage()),
               GetPage(

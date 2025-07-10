@@ -68,6 +68,11 @@ class MainActivity : FlutterActivity() {
                         val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
                         prefs.edit().putStringSet("blocked_apps", apps.toSet()).apply()
                         Log.d(TAG, "Saved blocked apps: $apps")
+                        
+                        // Start the AppLaunchInterceptor service
+                        val interceptorIntent = Intent(this, AppLaunchInterceptor::class.java)
+                        startService(interceptorIntent)
+                        Log.d(TAG, "Started AppLaunchInterceptor")
                     }
                     result.success(null)
                 }
@@ -86,6 +91,19 @@ class MainActivity : FlutterActivity() {
                     } else {
                         result.error("INVALID_ARG", "Package name is null.", null)
                     }
+                }
+                "closeBothApps" -> {
+                    Log.d(TAG, "closeBothApps called")
+                    closeBothApps()
+                    result.success(null)
+                }
+                "resetAppBlock" -> {
+                    val packageName = call.argument<String>("packageName")
+                    Log.d(TAG, "resetAppBlock called for: $packageName")
+                    if (packageName != null) {
+                        resetAppBlock(packageName)
+                    }
+                    result.success(null)
                 }
                 else -> {
                     result.notImplemented()
@@ -154,5 +172,82 @@ class MainActivity : FlutterActivity() {
         val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
         startActivity(intent)
+    }
+
+    private fun closeBothApps() {
+        try {
+            Log.d(TAG, "Starting closeBothApps")
+            
+            // Get the ActivityManager
+            val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            
+            // Get recent tasks to find the blocked app
+            val recentTasks = am.getRecentTasks(10, android.app.ActivityManager.RECENT_WITH_EXCLUDED)
+            
+            // Find and close the blocked app
+            for (task in recentTasks) {
+                val baseIntent = task.baseIntent
+                val packageName = baseIntent.component?.packageName
+                
+                if (packageName != null && packageName != this.packageName) {
+                    Log.d(TAG, "Found app to close: $packageName")
+                    
+                    // Try multiple methods to force stop the app
+                    try {
+                        // Method 1: Kill background processes
+                        am.killBackgroundProcesses(packageName)
+                        Log.d(TAG, "Killed background processes for: $packageName")
+                        
+                        // Method 2: Try to force stop using shell command (requires root or system app)
+                        try {
+                            val process = Runtime.getRuntime().exec(arrayOf("su", "-c", "am force-stop $packageName"))
+                            process.waitFor()
+                            Log.d(TAG, "Force stopped $packageName using shell command")
+                        } catch (e: Exception) {
+                            Log.d(TAG, "Could not force stop $packageName using shell command: ${e.message}")
+                        }
+                        
+                        // Method 3: Try to clear recent tasks by restarting the launcher
+                        try {
+                            val homeIntent = Intent(Intent.ACTION_MAIN)
+                            homeIntent.addCategory(Intent.CATEGORY_HOME)
+                            homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            startActivity(homeIntent)
+                            Log.d(TAG, "Sent home intent to clear recent tasks")
+                        } catch (e: Exception) {
+                            Log.d(TAG, "Could not send home intent: ${e.message}")
+                        }
+                        
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error killing app $packageName: ${e.message}")
+                    }
+                }
+            }
+            
+            // Add a small delay to ensure the blocked app is killed
+            Thread.sleep(500)
+            
+            // Close the current app (Detach)
+            Log.d(TAG, "Closing current app")
+            finishAndRemoveTask()
+            
+            // Force stop completely
+            finishAffinity()
+            android.os.Process.killProcess(android.os.Process.myPid())
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error closing apps: ${e.message}")
+            // Even if there's an error, try to close the current app
+            finishAndRemoveTask()
+            finishAffinity()
+        }
+    }
+
+    private fun resetAppBlock(packageName: String) {
+        // Send broadcast to AppLaunchInterceptor to reset the block
+        val intent = Intent("com.example.detach.RESET_APP_BLOCK")
+        intent.putExtra("package_name", packageName)
+        sendBroadcast(intent)
+        Log.d(TAG, "Reset app block for: $packageName")
     }
 }

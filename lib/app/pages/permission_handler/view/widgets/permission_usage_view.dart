@@ -31,7 +31,11 @@ class PermissionUsageView extends GetView<PermissionController> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () => controller.openUsageSettings(),
+              onPressed: () async {
+                await controller.openUsageSettings();
+                // Reset permission check so it will re-check when user returns
+                controller.resetPermissionCheck();
+              },
               style: ElevatedButton.styleFrom(
                 shape: SmoothRectangleBorder(
                   borderRadius: SmoothBorderRadius.all(

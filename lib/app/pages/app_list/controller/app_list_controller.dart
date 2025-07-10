@@ -1,4 +1,5 @@
 import 'package:detach/services/platform_service.dart';
+import 'package:detach/services/analytics_service.dart';
 import 'package:get/get.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
@@ -46,9 +47,13 @@ class AppListController extends GetxController {
   void toggleAppSelection(AppInfo app) {
     if (selectedAppPackages.contains(app.packageName)) {
       selectedAppPackages.remove(app.packageName);
+      AnalyticsService.to.logAppUnblocked(app.name);
     } else {
       selectedAppPackages.add(app.packageName);
+      AnalyticsService.to.logAppBlocked(app.name);
     }
+    // Trigger UI update
+    selectedAppPackages.refresh();
     allApps.refresh();
   }
 
@@ -69,6 +74,14 @@ class AppListController extends GetxController {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList("blocked_apps", selectedAppPackages.toList());
     PlatformService.startBlockerService(selectedAppPackages.toList());
+
+    // Log analytics
+    await AnalyticsService.to.logFeatureUsage('apps_configured');
+    await AnalyticsService.to.logEvent(
+      name: 'apps_blocked_count',
+      parameters: {'count': selectedAppPackages.length},
+    );
+
     Get.back(result: true);
   }
 

@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:detach/services/analytics_service.dart';
 
 class HomeController extends GetxController {
   final RxInt tabIndex = 0.obs;
@@ -9,6 +10,7 @@ class HomeController extends GetxController {
   void onInit() {
     super.onInit();
     _loadLimitedAppsCount();
+    _logScreenView();
   }
 
   Future<void> _loadLimitedAppsCount() async {
@@ -29,5 +31,9 @@ class HomeController extends GetxController {
     if (result == true) {
       _loadLimitedAppsCount();
     }
+  }
+
+  Future<void> _logScreenView() async {
+    await AnalyticsService.to.logScreenView('home');
   }
 }

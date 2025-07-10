@@ -21,6 +21,7 @@ class AppListView extends GetView<AppListController> {
           return const Center(child: CircularProgressIndicator());
         }
 
+        // Always show selected apps at the top, then the rest
         final selectedApps =
             controller.allApps
                 .where(
@@ -28,9 +29,8 @@ class AppListView extends GetView<AppListController> {
                       controller.selectedAppPackages.contains(app.packageName),
                 )
                 .toList();
-
         final otherApps =
-            controller.filteredApps
+            controller.allApps
                 .where(
                   (app) =>
                       !controller.selectedAppPackages.contains(app.packageName),
@@ -43,11 +43,10 @@ class AppListView extends GetView<AppListController> {
             Expanded(
               child: CustomScrollView(
                 slivers: [
-                  if (controller.showSelectedApps.value &&
-                      selectedApps.isNotEmpty) ...[
+                  if (selectedApps.isNotEmpty) ...[
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.symmetric(
+                        padding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 8,
                         ),
@@ -104,10 +103,7 @@ class AppListView extends GetView<AppListController> {
             controller.selectedAppPackages.isNotEmpty
                 ? FloatingActionButton.extended(
                   onPressed: () {
-                    controller.showSelectedApps.value = true;
-                    Future.delayed(const Duration(seconds: 2), () {
-                      controller.saveAndStartService();
-                    });
+                    controller.saveAndStartService();
                   },
                   label: const Text('Continue'),
                   icon: const Icon(Icons.check),

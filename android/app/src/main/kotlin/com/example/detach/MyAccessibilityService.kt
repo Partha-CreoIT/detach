@@ -36,10 +36,26 @@ class MyAccessibilityService : AccessibilityService() {
 
             if (blockedApps != null && blockedApps.contains(packageName) && packageName != "com.example.detach") {
                 Log.d(TAG, "Blocked app opened: $packageName. Launching PauseActivity.")
+                
                 // Add app to the cooldown list BEFORE launching the activity.
                 unblockedApps[packageName] = System.currentTimeMillis()
+                
+                // Try to go back to home screen first to prevent the blocked app from staying in foreground
+                try {
+                    val homeIntent = Intent(Intent.ACTION_MAIN)
+                    homeIntent.addCategory(Intent.CATEGORY_HOME)
+                    homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    startActivity(homeIntent)
+                    
+                    // Small delay to ensure home screen is shown
+                    Thread.sleep(100)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error going to home screen: ${e.message}")
+                }
+                
+                // Now launch the pause activity
                 val intent = Intent(this, PauseActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                     putExtra("blocked_app_package", packageName)
                 }
                 startActivity(intent)
@@ -55,9 +71,12 @@ class MyAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         Log.d(TAG, "Accessibility Service connected.")
         val info = AccessibilityServiceInfo().apply {
-            eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+            eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
-            flags = AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
+            flags = AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS or 
+                   AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
+                   AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            notificationTimeout = 50
         }
         serviceInfo = info
     }

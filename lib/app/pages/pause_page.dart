@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'package:detach/services/platform_service.dart';
+import 'package:detach/services/app_count_service.dart';
+import 'package:detach/services/analytics_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:wave/wave.dart';
 import 'package:wave/config.dart';
 import 'package:figma_squircle/figma_squircle.dart';
+import 'package:installed_apps/installed_apps.dart';
+import 'package:installed_apps/app_info.dart';
 
 class PausePage extends StatefulWidget {
   const PausePage({super.key});
@@ -22,19 +26,13 @@ class _PausePageState extends State<PausePage>
   Timer? _timer;
 
   int _start = 60;
-  int _attemptsToday = 3; // 🔥 Hard-coded for now
+  int _attemptsToday = 0;
   String? _lockedPackageName;
+  String _appName = "";
+  List<AppInfo> _allApps = [];
 
   bool _showButtons = false;
   bool _timerStarted = false;
-
-  final List<String> _tips = [
-    "Screen breaks improve focus & reduce stress.",
-    "Stay strong! Mindful pauses help your brain.",
-    "A few seconds can reset your mood.",
-    "Looking away from the screen helps your eyes relax.",
-  ];
-  String _currentTip = "";
 
   @override
   void initState() {
@@ -42,6 +40,12 @@ class _PausePageState extends State<PausePage>
 
     _lockedPackageName = Get.parameters['package'];
     debugPrint('PausePage: Initialized with package: $_lockedPackageName');
+
+    // Log analytics
+    AnalyticsService.to.logScreenView('pause_page');
+    if (_lockedPackageName != null) {
+      AnalyticsService.to.logAppBlocked(_lockedPackageName!);
+    }
 
     _waterController = AnimationController(
       vsync: this,
@@ -64,24 +68,56 @@ class _PausePageState extends State<PausePage>
         });
       }
     });
+
+    _initializeAppData();
+  }
+
+  Future<void> _initializeAppData() async {
+    if (_lockedPackageName != null) {
+      // Load all apps to get app names
+      try {
+        _allApps = await InstalledApps.getInstalledApps(true, true);
+        _appName = AppCountService.getAppNameFromPackage(
+          _lockedPackageName!,
+          _allApps,
+        );
+
+        // Load the count for this specific app
+        _attemptsToday = await AppCountService.getAppCount(_lockedPackageName!);
+
+        setState(() {});
+      } catch (e) {
+        debugPrint('Error loading app data: $e');
+        _appName = _lockedPackageName!;
+      }
+    }
   }
 
   void startTimer() {
-    _currentTip = (_tips..shuffle()).first;
     _timerStarted = true;
+
+    // Log pause session started
+    AnalyticsService.to.logPauseSession(_start);
+
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       if (_start == 0) {
         timer.cancel();
+
+        // Log pause session completed
+        AnalyticsService.to.logPauseSessionCompleted(60);
+
+        // Close the pause activity first
+        await PlatformService.closeBothApps();
+
+        // Then launch the app after a short delay to avoid conflicts
         if (_lockedPackageName != null) {
-          await PlatformService.launchApp(_lockedPackageName!);
+          Future.delayed(const Duration(milliseconds: 500), () async {
+            await PlatformService.launchApp(_lockedPackageName!);
+          });
         }
-        SystemNavigator.pop();
       } else {
         setState(() {
           _start--;
-          if (_start % 10 == 0) {
-            _currentTip = (_tips..shuffle()).first;
-          }
         });
       }
     });
@@ -96,7 +132,8 @@ class _PausePageState extends State<PausePage>
 
   @override
   Widget build(BuildContext context) {
-    final appName = _lockedPackageName ?? "App";
+    final appName =
+        _appName.isNotEmpty ? _appName : (_lockedPackageName ?? "App");
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -164,7 +201,7 @@ class _PausePageState extends State<PausePage>
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'attempts to open ${appName.capitalizeFirst} within the\nlast 24 hours.',
+                      'attempts to open $appName within the\nlast 24 hours.',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 18,
@@ -174,8 +211,15 @@ class _PausePageState extends State<PausePage>
                     ),
                     const Spacer(),
                     FilledButton(
-                      onPressed: () {
-                        SystemNavigator.pop();
+                      onPressed: () async {
+                        // Increment count for this specific app
+                        if (_lockedPackageName != null) {
+                          await AppCountService.incrementAppCount(
+                            _lockedPackageName!,
+                          );
+                        }
+                        // Close both apps
+                        await PlatformService.closeBothApps();
                       },
                       style: FilledButton.styleFrom(
                         backgroundColor: const Color(0xFF6B75F2),
@@ -196,7 +240,18 @@ class _PausePageState extends State<PausePage>
                     ),
                     const SizedBox(height: 16),
                     TextButton(
-                      onPressed: () {
+                      onPressed: () async {
+                        // Log analytics for continue action
+                        AnalyticsService.to.logPauseSessionInterrupted();
+
+                        // Reset the permanent block so user can actually open the app
+                        if (_lockedPackageName != null) {
+                          await PlatformService.resetAppBlock(
+                            _lockedPackageName!,
+                          );
+                        }
+
+                        // Start timer instead of immediately launching app
                         setState(() {
                           startTimer();
                         });
@@ -210,7 +265,7 @@ class _PausePageState extends State<PausePage>
                           ),
                         ),
                       ),
-                      child: Text('Continue on ${appName.capitalizeFirst}'),
+                      child: Text('Continue on $appName'),
                     ),
                     const SizedBox(height: 32),
                   ],

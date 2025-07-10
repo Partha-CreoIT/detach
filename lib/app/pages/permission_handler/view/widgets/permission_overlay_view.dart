@@ -31,7 +31,11 @@ class PermissionOverlayView extends GetView<PermissionController> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () => controller.openOverlaySettings(),
+              onPressed: () async {
+                await controller.openOverlaySettings();
+                // Reset permission check so it will re-check when user returns
+                controller.resetPermissionCheck();
+              },
               style: ElevatedButton.styleFrom(
                 shape: SmoothRectangleBorder(
                   borderRadius: SmoothBorderRadius.all(

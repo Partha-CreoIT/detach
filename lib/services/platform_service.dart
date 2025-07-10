@@ -60,4 +60,24 @@ class PlatformService {
       // Handle error
     }
   }
+
+  /// Closes both the current app and the blocked app
+  static Future<void> closeBothApps() async {
+    try {
+      await _channel.invokeMethod('closeBothApps');
+    } catch (e) {
+      print("Error closing both apps: $e");
+    }
+  }
+
+  /// Resets the permanent block for a specific app
+  static Future<void> resetAppBlock(String packageName) async {
+    try {
+      await _channel.invokeMethod('resetAppBlock', {
+        'packageName': packageName,
+      });
+    } catch (e) {
+      print("Error resetting app block: $e");
+    }
+  }
 }

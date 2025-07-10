@@ -1,4 +1,5 @@
 import 'package:detach/services/permission_service.dart';
+import 'package:detach/services/analytics_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -6,12 +7,14 @@ class PermissionController extends GetxController with WidgetsBindingObserver {
   final PermissionService _permissionService = PermissionService();
   final PageController pageController = PageController();
   final RxInt currentPage = 0.obs;
+  bool _hasCheckedPermissions = false;
 
   @override
   void onInit() {
     super.onInit();
     WidgetsBinding.instance.addObserver(this);
     _checkPermissionsAndNavigate();
+    _logScreenView();
   }
 
   @override
@@ -23,7 +26,7 @@ class PermissionController extends GetxController with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.resumed && !_hasCheckedPermissions) {
       _checkPermissionsAndNavigate();
     }
   }
@@ -31,6 +34,7 @@ class PermissionController extends GetxController with WidgetsBindingObserver {
   Future<void> _checkPermissionsAndNavigate() async {
     final currentRoute = Get.currentRoute;
     print('[DEBUG] PermissionController: currentRoute = ' + currentRoute);
+
     // Bypass permission check if current route is /pause (for block screen)
     if (currentRoute.startsWith('/pause')) {
       print(
@@ -38,6 +42,10 @@ class PermissionController extends GetxController with WidgetsBindingObserver {
       );
       return;
     }
+
+    // Mark that we've checked permissions
+    _hasCheckedPermissions = true;
+
     if (!(await _permissionService.hasUsagePermission())) {
       print(
         '[DEBUG] PermissionController: Missing usage permission, navigating to page 0',
@@ -80,18 +88,31 @@ class PermissionController extends GetxController with WidgetsBindingObserver {
   }
 
   Future<void> openUsageSettings() async {
+    await AnalyticsService.to.logPermissionRequest('usage_stats');
     await PermissionService.openUsageSettings();
   }
 
   Future<void> openAccessibilitySettings() async {
+    await AnalyticsService.to.logPermissionRequest('accessibility');
     await PermissionService.openAccessibilitySettings();
   }
 
   Future<void> openOverlaySettings() async {
+    await AnalyticsService.to.logPermissionRequest('overlay');
     await PermissionService.openOverlaySettings();
   }
 
   Future<void> openBatteryOptimizationSettings() async {
+    await AnalyticsService.to.logPermissionRequest('battery_optimization');
     await PermissionService.openBatteryOptimizationSettings();
+  }
+
+  /// Reset permission check flag to allow re-checking when user returns from settings
+  void resetPermissionCheck() {
+    _hasCheckedPermissions = false;
+  }
+
+  Future<void> _logScreenView() async {
+    await AnalyticsService.to.logScreenView('permission_setup');
   }
 }

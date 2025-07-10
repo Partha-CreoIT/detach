@@ -31,7 +31,11 @@ class PermissionBatteryView extends GetView<PermissionController> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () => controller.openBatteryOptimizationSettings(),
+              onPressed: () async {
+                await controller.openBatteryOptimizationSettings();
+                // Reset permission check so it will re-check when user returns
+                controller.resetPermissionCheck();
+              },
               style: ElevatedButton.styleFrom(
                 shape: SmoothRectangleBorder(
                   borderRadius: SmoothBorderRadius.all(
