@@ -80,4 +80,37 @@ class PlatformService {
       print("Error resetting app block: $e");
     }
   }
+
+  /// Permanently blocks an app (user clicked "I don't want to open")
+  static Future<void> permanentlyBlockApp(String packageName) async {
+    try {
+      await _channel.invokeMethod('permanentlyBlockApp', {
+        'packageName': packageName,
+      });
+    } catch (e) {
+      print("Error permanently blocking app: $e");
+    }
+  }
+
+  /// Check if the blocker service is running
+  static Future<bool> isBlockerServiceRunning() async {
+    try {
+      final result = await _channel.invokeMethod('isBlockerServiceRunning');
+      return result ?? false;
+    } catch (e) {
+      print("Error checking service status: $e");
+      return false;
+    }
+  }
+
+  /// Get the current list of blocked apps
+  static Future<List<String>> getBlockedApps() async {
+    try {
+      final result = await _channel.invokeMethod('getBlockedApps');
+      return List<String>.from(result ?? []);
+    } catch (e) {
+      print("Error getting blocked apps: $e");
+      return [];
+    }
+  }
 }

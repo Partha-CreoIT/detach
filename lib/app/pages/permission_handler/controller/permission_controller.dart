@@ -2,6 +2,7 @@ import 'package:detach/services/permission_service.dart';
 import 'package:detach/services/analytics_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:detach/app/routes/app_routes.dart';
 
 class PermissionController extends GetxController with WidgetsBindingObserver {
   final PermissionService _permissionService = PermissionService();
@@ -36,7 +37,7 @@ class PermissionController extends GetxController with WidgetsBindingObserver {
     print('[DEBUG] PermissionController: currentRoute = ' + currentRoute);
 
     // Bypass permission check if current route is /pause (for block screen)
-    if (currentRoute.startsWith('/pause')) {
+    if (currentRoute.startsWith(AppRoutes.pause)) {
       print(
         '[DEBUG] PermissionController: Bypassing permission check for /pause route',
       );
@@ -79,7 +80,7 @@ class PermissionController extends GetxController with WidgetsBindingObserver {
     print(
       '[DEBUG] PermissionController: All permissions granted, navigating to /home',
     );
-    Get.offAllNamed('/home');
+    Get.offAllNamed(AppRoutes.home);
   }
 
   void _navigateToPage(int page) {

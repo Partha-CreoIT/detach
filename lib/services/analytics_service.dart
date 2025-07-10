@@ -22,14 +22,9 @@ class AnalyticsService extends GetxService {
 
   Future<void> _initializeAnalytics() async {
     try {
-      log('Starting Firebase initialization...');
+      log('Starting Firebase Analytics initialization...');
 
-      // Initialize Firebase with generated options
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-      log('Firebase initialized successfully');
-
+      // Firebase is already initialized in main.dart, just get the analytics instance
       _firebaseAnalytics = FirebaseAnalytics.instance;
       log('Firebase Analytics instance created');
 

@@ -21,6 +21,10 @@ class AppLaunchInterceptor : Service() {
     private var lastEventTime = 0L
     private val permanentlyBlockedApps = mutableSetOf<String>()
     private var isMonitoringEnabled = true
+
+    companion object {
+        var currentlyPausedApp: String? = null
+    }
     
     private val resetBlockReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -38,6 +42,12 @@ class AppLaunchInterceptor : Service() {
                         Log.d(TAG, "Re-enabled monitoring")
                     }, 5000)
                 }
+            } else if (intent?.action == "com.example.detach.PERMANENTLY_BLOCK_APP") {
+                val packageName = intent.getStringExtra("package_name")
+                if (packageName != null) {
+                    permanentlyBlockedApps.add(packageName)
+                    Log.d(TAG, "Permanently blocked: $packageName")
+                }
             }
         }
     }
@@ -48,14 +58,18 @@ class AppLaunchInterceptor : Service() {
         usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         handler = Handler(Looper.getMainLooper())
         
-        // Register broadcast receiver for reset block
-        val filter = IntentFilter("com.example.detach.RESET_APP_BLOCK")
+        // Register broadcast receiver for reset block and permanent block
+        val filter = IntentFilter().apply {
+            addAction("com.example.detach.RESET_APP_BLOCK")
+            addAction("com.example.detach.PERMANENTLY_BLOCK_APP")
+        }
         registerReceiver(resetBlockReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         
         startMonitoring()
     }
 
     private fun startMonitoring() {
+        Log.d(TAG, "Starting monitoring with blocked apps: $permanentlyBlockedApps")
         Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate({
             try {
                 monitorAppUsage()
@@ -73,10 +87,19 @@ class AppLaunchInterceptor : Service() {
         val currentTime = System.currentTimeMillis()
         val events = usageStatsManager.queryEvents(lastEventTime, currentTime)
         val event = UsageEvents.Event()
+        
+        // Log every 100th call to see if monitoring is running
+        if (currentTime % 1000 < 10) {
+            Log.d(TAG, "Monitoring is running, checking for events...")
+        }
+        
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
+            Log.d(TAG, "Event detected: ${event.eventType} for package: ${event.packageName}")
+            
             if (event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND) {
                 val packageName = event.packageName
+                Log.d(TAG, "App moved to foreground: $packageName")
                 if (packageName != null && packageName != "com.example.detach") {
                     handleAppLaunch(packageName)
                 }
@@ -86,40 +109,49 @@ class AppLaunchInterceptor : Service() {
     }
 
     private fun handleAppLaunch(packageName: String) {
-        // Check if this app is permanently blocked (user clicked "I don't want to open")
-        if (permanentlyBlockedApps.contains(packageName)) {
-            Log.d(TAG, "$packageName is permanently blocked. Ignoring.")
-            return
-        }
-        
+        Log.d(TAG, "Checking if $packageName is blocked...")
         val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
         val blockedApps = prefs.getStringSet("blocked_apps", null)
-        if (blockedApps != null && blockedApps.contains(packageName)) {
-            Log.d(TAG, "Blocked app launch detected: $packageName - PREVENTING LAUNCH")
-            permanentlyBlockedApps.add(packageName)
+        Log.d(TAG, "Blocked apps from prefs: $blockedApps")
+        
+        // Also check if this app is in the permanently blocked list
+        if (permanentlyBlockedApps.contains(packageName)) {
+            Log.d(TAG, "$packageName is permanently blocked, preventing launch")
+            // Prevent the launch
             handler.post {
                 try {
                     val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
                     am.killBackgroundProcesses(packageName)
-                    try {
-                        val process = Runtime.getRuntime().exec(arrayOf("su", "-c", "am force-stop $packageName"))
-                        process.waitFor()
-                        Log.d(TAG, "Force stopped $packageName using shell command")
-                    } catch (e: Exception) {
-                        Log.d(TAG, "Could not force stop $packageName using shell command: ${e.message}")
-                    }
                     val homeIntent = Intent(Intent.ACTION_MAIN)
                     homeIntent.addCategory(Intent.CATEGORY_HOME)
                     homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                     startActivity(homeIntent)
-                    Thread.sleep(50)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error preventing permanently blocked app launch: ${e.message}")
+                }
+            }
+            return
+        }
+        
+        // Only show pause if not already showing for this app
+        if (blockedApps != null && blockedApps.contains(packageName)) {
+            if (currentlyPausedApp == packageName) {
+                Log.d(TAG, "Pause already shown for $packageName, skipping.")
+                return
+            }
+            currentlyPausedApp = packageName
+            Log.d(TAG, "Blocked app launch detected: $packageName - SHOWING PAUSE")
+
+            handler.post {
+                try {
                     val pauseIntent = Intent(this, PauseActivity::class.java).apply {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                         putExtra("blocked_app_package", packageName)
+                        putExtra("show_lock", true)
                     }
                     startActivity(pauseIntent)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error preventing app launch: ${e.message}")
+                    Log.e(TAG, "Error launching pause screen: ${e.message}")
                 }
             }
         }
@@ -138,6 +170,7 @@ class AppLaunchInterceptor : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Error unregistering receiver: ${e.message}")
         }
+        currentlyPausedApp = null
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

@@ -64,15 +64,28 @@ class MainActivity : FlutterActivity() {
                 }
                 "startBlockerService" -> {
                     val apps = call.argument<List<String>>("blockedApps")
+                    Log.d(TAG, "startBlockerService called with apps: $apps")
                     if (apps != null) {
                         val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
                         prefs.edit().putStringSet("blocked_apps", apps.toSet()).apply()
                         Log.d(TAG, "Saved blocked apps: $apps")
                         
+                        // Verify the save worked
+                        val savedApps = prefs.getStringSet("blocked_apps", null)
+                        Log.d(TAG, "Verified saved apps: $savedApps")
+                        
                         // Start the AppLaunchInterceptor service
                         val interceptorIntent = Intent(this, AppLaunchInterceptor::class.java)
                         startService(interceptorIntent)
-                        Log.d(TAG, "Started AppLaunchInterceptor")
+                        Log.d(TAG, "Started AppLaunchInterceptor service")
+                        
+                        // Also check if service is running
+                        val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+                        val runningServices = am.getRunningServices(Integer.MAX_VALUE)
+                        val isServiceRunning = runningServices.any { it.service.className == "com.example.detach.AppLaunchInterceptor" }
+                        Log.d(TAG, "AppLaunchInterceptor service running: $isServiceRunning")
+                    } else {
+                        Log.e(TAG, "No apps provided to startBlockerService")
                     }
                     result.success(null)
                 }
@@ -104,6 +117,28 @@ class MainActivity : FlutterActivity() {
                         resetAppBlock(packageName)
                     }
                     result.success(null)
+                }
+                "permanentlyBlockApp" -> {
+                    val packageName = call.argument<String>("packageName")
+                    Log.d(TAG, "permanentlyBlockApp called for: $packageName")
+                    if (packageName != null) {
+                        permanentlyBlockApp(packageName)
+                    }
+                    result.success(null)
+                }
+                "isBlockerServiceRunning" -> {
+                    val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+                    val runningServices = am.getRunningServices(Integer.MAX_VALUE)
+                    val isRunning = runningServices.any { it.service.className == "com.example.detach.AppLaunchInterceptor" }
+                    Log.d(TAG, "Checking if AppLaunchInterceptor is running: $isRunning")
+                    result.success(isRunning)
+                }
+                "getBlockedApps" -> {
+                    val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                    val blockedApps = prefs.getStringSet("blocked_apps", null)
+                    val appsList = blockedApps?.toList() ?: emptyList()
+                    Log.d(TAG, "Getting blocked apps: $appsList")
+                    result.success(appsList)
                 }
                 else -> {
                     result.notImplemented()
@@ -249,5 +284,13 @@ class MainActivity : FlutterActivity() {
         intent.putExtra("package_name", packageName)
         sendBroadcast(intent)
         Log.d(TAG, "Reset app block for: $packageName")
+    }
+
+    private fun permanentlyBlockApp(packageName: String) {
+        // Send broadcast to AppLaunchInterceptor to permanently block the app
+        val intent = Intent("com.example.detach.PERMANENTLY_BLOCK_APP")
+        intent.putExtra("package_name", packageName)
+        sendBroadcast(intent)
+        Log.d(TAG, "Permanently blocked app: $packageName")
     }
 }

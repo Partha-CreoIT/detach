@@ -1,41 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:installed_apps/app_info.dart';
-import '../controller/app_list_controller.dart';
+import '../../controller/home_controller.dart';
+import 'package:figma_squircle/figma_squircle.dart';
 
-class AppListView extends GetView<AppListController> {
-  const AppListView({super.key});
+class OverviewPage extends GetView<HomeController> {
+  const OverviewPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Apps to Limit'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: controller.goBack,
+        title: const Text(
+          'Overview',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 28),
         ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
       body: Obx(() {
         if (controller.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
         }
-
-        // Always show selected apps at the top, then the rest
-        final selectedApps =
-            controller.allApps
-                .where(
-                  (app) =>
-                      controller.selectedAppPackages.contains(app.packageName),
-                )
-                .toList();
-        final otherApps =
-            controller.allApps
-                .where(
-                  (app) =>
-                      !controller.selectedAppPackages.contains(app.packageName),
-                )
-                .toList();
 
         return Column(
           children: [
@@ -43,32 +32,46 @@ class AppListView extends GetView<AppListController> {
             Expanded(
               child: CustomScrollView(
                 slivers: [
-                  if (selectedApps.isNotEmpty) ...[
+                  // Selected Apps Section
+                  if (controller.selectedApps.isNotEmpty) ...[
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 8,
                         ),
-                        child: Text(
-                          'Selected Apps',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
+                        child: Row(
+                          children: [
+                            Text(
+                              'Selected Apps (${controller.selectedApps.length})',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                            const Spacer(),
+                            TextButton(
+                              onPressed: controller.clearAllSelected,
+                              child: const Text('Clear All'),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                     SliverList(
                       delegate: SliverChildBuilderDelegate(
-                        (context, index) =>
-                            _buildAppTile(context, selectedApps[index]),
-                        childCount: selectedApps.length,
+                        (context, index) => _buildAppTile(
+                          context,
+                          controller.selectedApps[index],
+                        ),
+                        childCount: controller.selectedApps.length,
                       ),
                     ),
                     const SliverToBoxAdapter(child: Divider(height: 32)),
                   ],
+
+                  // All Apps Section
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -87,9 +90,11 @@ class AppListView extends GetView<AppListController> {
                   ),
                   SliverList(
                     delegate: SliverChildBuilderDelegate(
-                      (context, index) =>
-                          _buildAppTile(context, otherApps[index]),
-                      childCount: otherApps.length,
+                      (context, index) => _buildAppTile(
+                        context,
+                        controller.filteredApps[index],
+                      ),
+                      childCount: controller.filteredApps.length,
                     ),
                   ),
                 ],
@@ -100,12 +105,10 @@ class AppListView extends GetView<AppListController> {
       }),
       floatingActionButton: Obx(
         () =>
-            controller.selectedAppPackages.isNotEmpty
+            controller.selectedApps.isNotEmpty
                 ? FloatingActionButton.extended(
-                  onPressed: () {
-                    controller.saveAndStartService();
-                  },
-                  label: const Text('Continue'),
+                  onPressed: controller.saveApps,
+                  label: const Text('Save'),
                   icon: const Icon(Icons.check),
                 )
                 : const SizedBox.shrink(),

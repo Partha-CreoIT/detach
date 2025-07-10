@@ -37,7 +37,7 @@
 
         <activity
             android:name=".PauseActivity"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:theme="@style/LaunchTheme"
             android:exported="false"
             android:launchMode="singleTask"
             android:excludeFromRecents="true"

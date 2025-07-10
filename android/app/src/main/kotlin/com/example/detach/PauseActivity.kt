@@ -19,8 +19,16 @@ class PauseActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val packageName = intent.getStringExtra("blocked_app_package")
-        Log.d(TAG, "onCreate called with blocked package: $packageName")
+        val showLock = intent.getBooleanExtra("show_lock", false)
+        Log.d(TAG, "onCreate called with blocked package: $packageName, showLock: $showLock")
         Log.d(TAG, "Intent extras: ${intent.extras}")
+        
+        // Only show pause screen if properly launched with a blocked app
+        if (packageName == null || !showLock) {
+            Log.d(TAG, "Invalid pause screen launch, finishing activity")
+            finish()
+            return
+        }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -32,6 +40,10 @@ class PauseActivity : FlutterActivity() {
                 "closeBothApps" -> {
                     Log.d(TAG, "closeBothApps called from PauseActivity")
                     closeBothApps()
+                    result.success(null)
+                }
+                "goToHomeAndFinish" -> {
+                    goToHomeAndFinish()
                     result.success(null)
                 }
                 else -> {
@@ -60,7 +72,8 @@ class PauseActivity : FlutterActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(TAG, "onDestroy called")
+        // Reset the flag in the service
+        AppLaunchInterceptor.currentlyPausedApp = null
     }
 
     private fun closeBothApps() {
@@ -130,5 +143,13 @@ class PauseActivity : FlutterActivity() {
             finishAndRemoveTask()
             finishAffinity()
         }
+    }
+
+    fun goToHomeAndFinish() {
+        val homeIntent = Intent(Intent.ACTION_MAIN)
+        homeIntent.addCategory(Intent.CATEGORY_HOME)
+        homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(homeIntent)
+        finish()
     }
 }
