@@ -53,7 +53,6 @@ class TimerView extends GetView<PauseController> {
                     ),
                     onPressed: () {
                       controller.startCountdown();
-                      Get.back();
                     },
                     child: Text(
                       'Start Timer And Open ${controller.displayAppName}',

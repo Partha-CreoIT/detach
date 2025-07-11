@@ -103,16 +103,6 @@ class OverviewPage extends GetView<HomeController> {
           ],
         );
       }),
-      floatingActionButton: Obx(
-        () =>
-            controller.selectedApps.isNotEmpty
-                ? FloatingActionButton.extended(
-                  onPressed: controller.saveApps,
-                  label: const Text('Save'),
-                  icon: const Icon(Icons.check),
-                )
-                : const SizedBox.shrink(),
-      ),
     );
   }
 
@@ -162,9 +152,15 @@ class OverviewPage extends GetView<HomeController> {
         ),
         trailing: Switch(
           value: isSelected,
-          onChanged: (_) => controller.toggleAppSelection(app),
+          onChanged: (_) {
+            controller.toggleAppSelection(app);
+            controller.saveApps();
+          },
         ),
-        onTap: () => controller.toggleAppSelection(app),
+        onTap: () {
+          controller.toggleAppSelection(app);
+          controller.saveApps();
+        },
       );
     });
   }
