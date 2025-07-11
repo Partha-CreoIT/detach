@@ -19,12 +19,12 @@ class PauseActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val packageName = intent.getStringExtra("blocked_app_package")
-        val showLock = intent.getBooleanExtra("show_lock", false)
+        val showLock = intent.getBooleanExtra("show_lock", true) // Default to true
         Log.d(TAG, "onCreate called with blocked package: $packageName, showLock: $showLock")
         Log.d(TAG, "Intent extras: ${intent.extras}")
         
         // Only show pause screen if properly launched with a blocked app
-        if (packageName == null || !showLock) {
+        if (packageName == null) {
             Log.d(TAG, "Invalid pause screen launch, finishing activity")
             finish()
             return
@@ -45,6 +45,70 @@ class PauseActivity : FlutterActivity() {
                 "goToHomeAndFinish" -> {
                     goToHomeAndFinish()
                     result.success(null)
+                }
+                "resetAppBlock" -> {
+                    val packageName = call.argument<String>("packageName")
+                    Log.d(TAG, "resetAppBlock called for: $packageName")
+                    if (packageName != null) {
+                        resetAppBlock(packageName)
+                        result.success(null)
+                    } else {
+                        result.error("INVALID_ARG", "Package name is null.", null)
+                    }
+                }
+                "launchApp" -> {
+                    val packageName = call.argument<String>("packageName")
+                    Log.d(TAG, "launchApp called for package: $packageName")
+                    if (packageName != null) {
+                        launchApp(packageName)
+                        result.success(null)
+                    } else {
+                        result.error("INVALID_ARG", "Package name is null.", null)
+                    }
+                }
+                "startBlockerService" -> {
+                    val apps = call.argument<List<String>>("blockedApps")
+                    Log.d(TAG, "startBlockerService called with apps: $apps")
+                    if (apps != null) {
+                        // Save to SharedPreferences
+                        val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                        prefs.edit().putStringSet("blocked_apps", apps.toSet()).apply()
+                        Log.d(TAG, "Saved blocked apps: $apps")
+                        
+                        // Start the AppLaunchInterceptor service
+                        val interceptorIntent = Intent(this, AppLaunchInterceptor::class.java)
+                        startService(interceptorIntent)
+                        Log.d(TAG, "Started AppLaunchInterceptor service")
+                        
+                        result.success(null)
+                    } else {
+                        result.error("INVALID_ARG", "No apps provided", null)
+                    }
+                }
+                "permanentlyBlockApp" -> {
+                    val packageName = call.argument<String>("packageName")
+                    Log.d(TAG, "permanentlyBlockApp called for: $packageName")
+                    if (packageName != null) {
+                        // Send broadcast to AppLaunchInterceptor to permanently block the app
+                        val intent = Intent("com.example.detach.PERMANENTLY_BLOCK_APP")
+                        intent.putExtra("package_name", packageName)
+                        sendBroadcast(intent)
+                        Log.d(TAG, "Sent permanent block broadcast for: $packageName")
+                        
+                        // Also add to blocked apps list in SharedPreferences if not already there
+                        val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                        val blockedApps = prefs.getStringSet("blocked_apps", mutableSetOf()) ?: mutableSetOf()
+                        if (!blockedApps.contains(packageName)) {
+                            val newBlockedApps = blockedApps.toMutableSet()
+                            newBlockedApps.add(packageName)
+                            prefs.edit().putStringSet("blocked_apps", newBlockedApps).apply()
+                            Log.d(TAG, "Added $packageName to blocked apps list")
+                        }
+                        
+                        result.success(null)
+                    } else {
+                        result.error("INVALID_ARG", "Package name is null.", null)
+                    }
                 }
                 else -> {
                     result.notImplemented()
@@ -151,5 +215,24 @@ class PauseActivity : FlutterActivity() {
         homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
         startActivity(homeIntent)
         finish()
+    }
+
+    private fun resetAppBlock(packageName: String) {
+        // Send broadcast to AppLaunchInterceptor to reset the block
+        val intent = Intent("com.example.detach.RESET_APP_BLOCK")
+        intent.putExtra("package_name", packageName)
+        sendBroadcast(intent)
+        Log.d(TAG, "Reset app block for: $packageName")
+    }
+
+    private fun launchApp(packageName: String) {
+        Log.d(TAG, "Attempting to launch app: $packageName")
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+        if (launchIntent != null) {
+            startActivity(launchIntent)
+            Log.d(TAG, "Successfully launched app: $packageName")
+        } else {
+            Log.e(TAG, "Could not launch app: $packageName")
+        }
     }
 }

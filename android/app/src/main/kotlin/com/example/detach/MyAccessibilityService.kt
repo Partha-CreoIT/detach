@@ -2,30 +2,60 @@ package com.example.detach
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 
 class MyAccessibilityService : AccessibilityService() {
 
     private val TAG = "MyAccessibilityService"
-    // Cooldown mechanism to prevent re-blocking the same app immediately.
     private val unblockedApps = mutableMapOf<String, Long>()
     private val cooldownMillis = 5000L // 5 seconds
+
+    private val resetBlockReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "com.example.detach.RESET_APP_BLOCK") {
+                val packageName = intent.getStringExtra("package_name")
+                if (packageName != null) {
+                    // Add to unblocked apps with current timestamp
+                    unblockedApps[packageName] = System.currentTimeMillis()
+                    Log.d(TAG, "Reset block for: $packageName and added to unblocked apps")
+                }
+            }
+        }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        // Register broadcast receiver for reset block
+        val filter = IntentFilter("com.example.detach.RESET_APP_BLOCK")
+        registerReceiver(resetBlockReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(resetBlockReceiver)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error unregistering receiver: ${e.message}")
+        }
+    }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && event.packageName != null) {
             val packageName = event.packageName.toString()
             val currentTime = System.currentTimeMillis()
 
-            // Check if the app is currently in a cooldown period.
+            // Check if the app is currently in a cooldown period
             val unblockTime = unblockedApps[packageName]
             if (unblockTime != null) {
                 if ((currentTime - unblockTime) < cooldownMillis) {
-                    Log.d(TAG, "$packageName is in cooldown. Ignoring.")
-                    return // Still in cooldown, so we do nothing.
+                    Log.d(TAG, "$packageName is in cooldown period, allowing launch")
+                    return
                 } else {
-                    // Cooldown has expired, remove it so the app can be blocked again in the future.
                     Log.d(TAG, "$packageName cooldown expired.")
                     unblockedApps.remove(packageName)
                 }
@@ -37,7 +67,7 @@ class MyAccessibilityService : AccessibilityService() {
             if (blockedApps != null && blockedApps.contains(packageName) && packageName != "com.example.detach") {
                 Log.d(TAG, "Blocked app opened: $packageName. Launching PauseActivity.")
                 
-                // Add app to the cooldown list BEFORE launching the activity.
+                // Add app to the cooldown list BEFORE launching the activity
                 unblockedApps[packageName] = System.currentTimeMillis()
                 
                 // Try to go back to home screen first to prevent the blocked app from staying in foreground

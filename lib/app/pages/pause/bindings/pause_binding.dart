@@ -1,5 +1,5 @@
 import 'package:get/get.dart';
-import 'pause_controller.dart';
+import '../controllers/pause_controller.dart';
 
 class PauseBinding extends Bindings {
   @override

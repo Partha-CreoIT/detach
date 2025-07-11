@@ -21,6 +21,8 @@ class AppLaunchInterceptor : Service() {
     private var lastEventTime = 0L
     private val permanentlyBlockedApps = mutableSetOf<String>()
     private var isMonitoringEnabled = true
+    private val unblockedApps = mutableMapOf<String, Long>()
+    private val cooldownMillis = 5000L // 5 seconds
 
     companion object {
         var currentlyPausedApp: String? = null
@@ -32,15 +34,9 @@ class AppLaunchInterceptor : Service() {
                 val packageName = intent.getStringExtra("package_name")
                 if (packageName != null) {
                     permanentlyBlockedApps.remove(packageName)
-                    // Temporarily disable monitoring to allow app launch
-                    isMonitoringEnabled = false
-                    Log.d(TAG, "Reset block for: $packageName and disabled monitoring")
-                    
-                    // Re-enable monitoring after 5 seconds
-                    handler.postDelayed({
-                        isMonitoringEnabled = true
-                        Log.d(TAG, "Re-enabled monitoring")
-                    }, 5000)
+                    // Add to unblocked apps with current timestamp
+                    unblockedApps[packageName] = System.currentTimeMillis()
+                    Log.d(TAG, "Reset block for: $packageName and added to unblocked apps")
                 }
             } else if (intent?.action == "com.example.detach.PERMANENTLY_BLOCK_APP") {
                 val packageName = intent.getStringExtra("package_name")
@@ -80,18 +76,11 @@ class AppLaunchInterceptor : Service() {
     }
 
     private fun monitorAppUsage() {
-        if (!isMonitoringEnabled) {
-            return
-        }
-        
         val currentTime = System.currentTimeMillis()
         val events = usageStatsManager.queryEvents(lastEventTime, currentTime)
         val event = UsageEvents.Event()
         
-        // Log every 100th call to see if monitoring is running
-        if (currentTime % 1000 < 10) {
-            Log.d(TAG, "Monitoring is running, checking for events...")
-        }
+
         
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
@@ -110,6 +99,20 @@ class AppLaunchInterceptor : Service() {
 
     private fun handleAppLaunch(packageName: String) {
         Log.d(TAG, "Checking if $packageName is blocked...")
+        
+        // Check cooldown first
+        val unblockTime = unblockedApps[packageName]
+        if (unblockTime != null) {
+            val currentTime = System.currentTimeMillis()
+            if ((currentTime - unblockTime) < cooldownMillis) {
+                Log.d(TAG, "$packageName is in cooldown period, allowing launch")
+                return
+            } else {
+                Log.d(TAG, "$packageName cooldown expired")
+                unblockedApps.remove(packageName)
+            }
+        }
+        
         val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
         val blockedApps = prefs.getStringSet("blocked_apps", null)
         Log.d(TAG, "Blocked apps from prefs: $blockedApps")
@@ -133,7 +136,7 @@ class AppLaunchInterceptor : Service() {
             return
         }
         
-        // Only show pause if not already showing for this app
+        // Only show pause if not already showing for this app and not in cooldown
         if (blockedApps != null && blockedApps.contains(packageName)) {
             if (currentlyPausedApp == packageName) {
                 Log.d(TAG, "Pause already shown for $packageName, skipping.")
