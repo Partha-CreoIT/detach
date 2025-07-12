@@ -140,6 +140,11 @@ class MainActivity : FlutterActivity() {
                     Log.d(TAG, "Getting blocked apps: $appsList")
                     result.success(appsList)
                 }
+                "closeApp" -> {
+                    // This will close the Flutter activity and remove the task from recents
+                    finishAndRemoveTask()
+                    result.success(null)
+                }
                 else -> {
                     result.notImplemented()
                 }

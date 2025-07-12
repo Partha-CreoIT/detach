@@ -113,4 +113,13 @@ class PlatformService {
       return [];
     }
   }
+
+  /// Closes the Flutter app completely (go to device home screen)
+  static Future<void> closeApp() async {
+    try {
+      await _channel.invokeMethod('closeApp');
+    } catch (e) {
+      print("Error closing app: $e");
+    }
+  }
 }

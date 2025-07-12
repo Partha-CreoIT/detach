@@ -2,16 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:installed_apps/app_info.dart';
 import '../../controller/home_controller.dart';
-import 'package:figma_squircle/figma_squircle.dart';
+import 'package:detach/services/theme_service.dart';
 
 class OverviewPage extends GetView<HomeController> {
   const OverviewPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -20,6 +17,82 @@ class OverviewPage extends GetView<HomeController> {
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        actions: [
+          PopupMenuButton<ThemeMode>(
+            icon: Obx(() {
+              final themeService = Get.find<ThemeService>();
+              IconData iconData;
+              switch (themeService.themeMode.value) {
+                case ThemeMode.light:
+                  iconData = Icons.light_mode;
+                  break;
+                case ThemeMode.dark:
+                  iconData = Icons.dark_mode;
+                  break;
+                case ThemeMode.system:
+                  iconData = Icons.brightness_auto;
+                  break;
+              }
+              return Icon(iconData);
+            }),
+            onSelected: (ThemeMode mode) {
+              Get.find<ThemeService>().setThemeMode(mode);
+            },
+            itemBuilder: (BuildContext context) => [
+              PopupMenuItem<ThemeMode>(
+                value: ThemeMode.light,
+                child: Row(
+                  children: [
+                    const Icon(Icons.light_mode, color: Colors.orange),
+                    const SizedBox(width: 8),
+                    const Text('Light'),
+                    const Spacer(),
+                    Obx(() {
+                      final themeService = Get.find<ThemeService>();
+                      return themeService.themeMode.value == ThemeMode.light
+                          ? const Icon(Icons.check, color: Colors.green)
+                          : const SizedBox.shrink();
+                    }),
+                  ],
+                ),
+              ),
+              PopupMenuItem<ThemeMode>(
+                value: ThemeMode.dark,
+                child: Row(
+                  children: [
+                    const Icon(Icons.dark_mode, color: Colors.indigo),
+                    const SizedBox(width: 8),
+                    const Text('Dark'),
+                    const Spacer(),
+                    Obx(() {
+                      final themeService = Get.find<ThemeService>();
+                      return themeService.themeMode.value == ThemeMode.dark
+                          ? const Icon(Icons.check, color: Colors.green)
+                          : const SizedBox.shrink();
+                    }),
+                  ],
+                ),
+              ),
+              PopupMenuItem<ThemeMode>(
+                value: ThemeMode.system,
+                child: Row(
+                  children: [
+                    const Icon(Icons.brightness_auto, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    const Text('System'),
+                    const Spacer(),
+                    Obx(() {
+                      final themeService = Get.find<ThemeService>();
+                      return themeService.themeMode.value == ThemeMode.system
+                          ? const Icon(Icons.check, color: Colors.green)
+                          : const SizedBox.shrink();
+                    }),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: Obx(() {
         if (controller.isLoading.value) {
@@ -138,10 +211,9 @@ class OverviewPage extends GetView<HomeController> {
         app.packageName,
       );
       return ListTile(
-        leading:
-            app.icon != null
-                ? Image.memory(app.icon!, width: 40, height: 40)
-                : const Icon(Icons.apps, size: 40),
+        leading: app.icon != null
+            ? Image.memory(app.icon!, width: 40, height: 40)
+            : const Icon(Icons.apps, size: 40),
         title: Text(app.name),
         subtitle: Text(
           app.packageName,

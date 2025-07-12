@@ -1,14 +1,15 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:detach/services/analytics_service.dart';
 import 'package:detach/services/platform_service.dart';
+import 'package:detach/services/permission_service.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
-import 'package:detach/services/permission_service.dart';
 
 class HomeController extends GetxController {
-  final RxInt tabIndex = 0.obs;
   final RxInt limitedAppsCount = 0.obs;
+  final PermissionService _permissionService = PermissionService();
 
   // App list functionality
   final RxList<AppInfo> allApps = <AppInfo>[].obs;
@@ -23,15 +24,6 @@ class HomeController extends GetxController {
     _loadBlockedAppsAndApps();
     _logScreenView();
     _startBlockerServiceIfNeeded();
-
-    // Check if there's a tab parameter in the URL
-    final tabParam = Get.parameters['tab'];
-    if (tabParam != null) {
-      final tabIndex = int.tryParse(tabParam);
-      if (tabIndex != null && tabIndex >= 0 && tabIndex <= 1) {
-        this.tabIndex.value = tabIndex;
-      }
-    }
   }
 
   Future<void> _loadLimitedAppsCount() async {
@@ -64,10 +56,9 @@ class HomeController extends GetxController {
       );
 
       // Filter out the current app (Detach) from the list
-      installedApps =
-          installedApps
-              .where((app) => app.packageName != 'com.example.detach')
-              .toList();
+      installedApps = installedApps
+          .where((app) => app.packageName != 'com.example.detach')
+          .toList();
 
       installedApps.sort(
         (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
@@ -79,10 +70,6 @@ class HomeController extends GetxController {
     }
   }
 
-  void changeTabIndex(int index) {
-    tabIndex.value = index;
-  }
-
   void toggleAppSelection(AppInfo app) async {
     if (selectedAppPackages.contains(app.packageName)) {
       selectedAppPackages.remove(app.packageName);
@@ -91,6 +78,19 @@ class HomeController extends GetxController {
       selectedAppPackages.add(app.packageName);
       AnalyticsService.to.logAppBlocked(app.name);
     }
+
+    // Always refresh the observable list
+    selectedAppPackages.refresh();
+    allApps.refresh();
+    filteredApps.refresh();
+
+    // Save to SharedPreferences and update the service
+    await saveApps();
+  }
+
+  Future<void> _performAppBlocking(AppInfo app) async {
+    selectedAppPackages.add(app.packageName);
+    AnalyticsService.to.logAppBlocked(app.name);
 
     // Save to SharedPreferences immediately
     final prefs = await SharedPreferences.getInstance();
@@ -102,6 +102,129 @@ class HomeController extends GetxController {
     // Trigger UI update
     selectedAppPackages.refresh();
     allApps.refresh();
+  }
+
+  Future<bool> _hasBypassedPermissions() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('bypassed_permissions') ?? false;
+  }
+
+  Future<bool> _checkAllPermissions() async {
+    final hasUsage = await _permissionService.hasUsagePermission();
+    final hasAccessibility = await _permissionService
+        .hasAccessibilityPermission();
+    final hasOverlay = await _permissionService.hasOverlayPermission();
+    final hasBattery = await _permissionService.hasBatteryOptimizationIgnored();
+
+    print('DEBUG: Permission check results:');
+    print('  - Usage: $hasUsage');
+    print('  - Accessibility: $hasAccessibility');
+    print('  - Overlay: $hasOverlay');
+    print('  - Battery: $hasBattery');
+
+    return hasUsage && hasAccessibility && hasOverlay && hasBattery;
+  }
+
+  void _showPermissionBottomSheet() {
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Icon
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.security, size: 32, color: Colors.orange),
+            ),
+            const SizedBox(height: 16),
+
+            // Title
+            const Text(
+              'Permissions Required',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Description
+            const Text(
+              'To lock apps and control their usage, you need to grant the required permissions.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+
+            // Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Get.back(),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('Cancel', style: TextStyle(fontSize: 16)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Get.back();
+                      Get.toNamed('/permission');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Configure',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+      isScrollControlled: true,
+      enableDrag: true,
+    );
   }
 
   void filterApps(String query) {
@@ -125,15 +248,12 @@ class HomeController extends GetxController {
     await PlatformService.startBlockerService([]);
   }
 
-  void saveApps() async {
-    // Save selected apps to SharedPreferences
+  Future<void> saveApps() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList("blocked_apps", selectedAppPackages.toList());
 
-    // Start the blocker service with the selected apps
-    if (selectedAppPackages.isNotEmpty) {
-      await PlatformService.startBlockerService(selectedAppPackages.toList());
-    }
+    // Always update the blocker service, even if only one app is blocked
+    await PlatformService.startBlockerService(selectedAppPackages.toList());
 
     // Update limited apps count
     limitedAppsCount.value = selectedAppPackages.length;

@@ -17,7 +17,10 @@ class PermissionView extends GetView<PermissionController> {
         title: const Text('Configure Permissions'),
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => Get.offAllNamed(AppRoutes.home),
+          onPressed: () async {
+            await controller.setBypassPermissions();
+            Get.offAllNamed(AppRoutes.home);
+          },
         ),
       ),
       body: SafeArea(

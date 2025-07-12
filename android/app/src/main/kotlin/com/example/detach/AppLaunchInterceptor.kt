@@ -23,6 +23,7 @@ class AppLaunchInterceptor : Service() {
     private var isMonitoringEnabled = true
     private val unblockedApps = mutableMapOf<String, Long>()
     private val cooldownMillis = 5000L // 5 seconds
+    private var lastForegroundApp: String? = null
 
     companion object {
         var currentlyPausedApp: String? = null
@@ -79,18 +80,24 @@ class AppLaunchInterceptor : Service() {
         val currentTime = System.currentTimeMillis()
         val events = usageStatsManager.queryEvents(lastEventTime, currentTime)
         val event = UsageEvents.Event()
-        
 
-        
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
             Log.d(TAG, "Event detected: ${event.eventType} for package: ${event.packageName}")
-            
+
             if (event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND) {
                 val packageName = event.packageName
                 Log.d(TAG, "App moved to foreground: $packageName")
                 if (packageName != null && packageName != "com.example.detach") {
                     handleAppLaunch(packageName)
+                    lastForegroundApp = packageName
+                }
+            }
+            // Detect when an allowed app leaves the foreground
+            if (event.eventType == UsageEvents.Event.MOVE_TO_BACKGROUND) {
+                val packageName = event.packageName
+                if (packageName != null && packageName != "com.example.detach") {
+                    handleAppBackgrounded(packageName)
                 }
             }
         }
@@ -157,6 +164,19 @@ class AppLaunchInterceptor : Service() {
                     Log.e(TAG, "Error launching pause screen: ${e.message}")
                 }
             }
+        }
+    }
+
+    private fun handleAppBackgrounded(packageName: String) {
+        // If the app was temporarily unblocked, re-block it immediately
+        if (unblockedApps.containsKey(packageName)) {
+            Log.d(TAG, "$packageName left foreground, re-blocking immediately")
+            unblockedApps.remove(packageName)
+            // Add back to blocked apps in SharedPreferences
+            val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+            val blockedApps = prefs.getStringSet("blocked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+            blockedApps.add(packageName)
+            prefs.edit().putStringSet("blocked_apps", blockedApps).apply()
         }
     }
 

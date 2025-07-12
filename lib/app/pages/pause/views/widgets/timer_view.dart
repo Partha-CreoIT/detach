@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 import '../../controllers/pause_controller.dart';
 import 'dart:math';
 import 'package:flutter/services.dart';
-import 'package:detach/services/platform_service.dart';
 
 class TimerView extends GetView<PauseController> {
   const TimerView({super.key});
@@ -121,7 +120,7 @@ class _GlowingTimeSliderState extends State<GlowingTimeSlider> {
 
     if (angle >= pi && angle <= 2 * pi) {
       double pct = ((angle - pi) / pi);
-      int minutes = (pct * 30).round().clamp(0, 30);
+      int minutes = (pct * 30).round().clamp(1, 30);
       if (minutes != _value) {
         HapticFeedback.mediumImpact();
         setState(() {
@@ -177,19 +176,17 @@ class _GlowingTimePainter extends CustomPainter {
     final radius = min(size.width / 2, size.height);
     final rect = Rect.fromCircle(center: center, radius: radius);
 
-    final backgroundPaint =
-        Paint()
-          ..color = Colors.grey.withOpacity(0.2)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 24
-          ..strokeCap = StrokeCap.round;
+    final backgroundPaint = Paint()
+      ..color = Colors.grey.withOpacity(0.2)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 24
+      ..strokeCap = StrokeCap.round;
 
-    final progressPaint =
-        Paint()
-          ..color = const Color(0xFF6B75F2)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 24
-          ..strokeCap = StrokeCap.round;
+    final progressPaint = Paint()
+      ..color = const Color(0xFF6B75F2)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 24
+      ..strokeCap = StrokeCap.round;
 
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius - 24),

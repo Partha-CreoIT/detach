@@ -3,6 +3,7 @@ import 'package:detach/services/analytics_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:detach/app/routes/app_routes.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PermissionController extends GetxController with WidgetsBindingObserver {
   final PermissionService _permissionService = PermissionService();
@@ -115,5 +116,11 @@ class PermissionController extends GetxController with WidgetsBindingObserver {
 
   Future<void> _logScreenView() async {
     await AnalyticsService.to.logScreenView('permission_setup');
+  }
+
+  /// Set bypass flag when user clicks close button
+  Future<void> setBypassPermissions() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('bypassed_permissions', true);
   }
 }

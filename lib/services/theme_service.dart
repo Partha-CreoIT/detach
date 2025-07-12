@@ -53,9 +53,23 @@ class ThemeService extends GetxController {
 
   Future<void> _loadThemePreference() async {
     final prefs = await SharedPreferences.getInstance();
-    final isDark = prefs.getBool('isDarkMode') ?? false;
-    isDarkMode.value = isDark;
-    themeMode.value = isDark ? ThemeMode.dark : ThemeMode.light;
+    final themeModeString = prefs.getString('themeMode') ?? 'system';
+
+    switch (themeModeString) {
+      case 'light':
+        themeMode.value = ThemeMode.light;
+        isDarkMode.value = false;
+        break;
+      case 'dark':
+        themeMode.value = ThemeMode.dark;
+        isDarkMode.value = true;
+        break;
+      case 'system':
+      default:
+        themeMode.value = ThemeMode.system;
+        isDarkMode.value = false;
+        break;
+    }
   }
 
   Future<void> toggleTheme() async {
@@ -63,7 +77,7 @@ class ThemeService extends GetxController {
     themeMode.value = isDarkMode.value ? ThemeMode.dark : ThemeMode.light;
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isDarkMode', isDarkMode.value);
+    await prefs.setString('themeMode', isDarkMode.value ? 'dark' : 'light');
 
     Get.changeThemeMode(themeMode.value);
   }
@@ -73,7 +87,19 @@ class ThemeService extends GetxController {
     isDarkMode.value = mode == ThemeMode.dark;
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isDarkMode', isDarkMode.value);
+    String themeModeString;
+    switch (mode) {
+      case ThemeMode.light:
+        themeModeString = 'light';
+        break;
+      case ThemeMode.dark:
+        themeModeString = 'dark';
+        break;
+      case ThemeMode.system:
+        themeModeString = 'system';
+        break;
+    }
+    await prefs.setString('themeMode', themeModeString);
 
     Get.changeThemeMode(mode);
   }
