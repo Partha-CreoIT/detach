@@ -111,18 +111,17 @@ class HomeController extends GetxController {
 
   Future<bool> _checkAllPermissions() async {
     final hasUsage = await _permissionService.hasUsagePermission();
-    final hasAccessibility = await _permissionService
-        .hasAccessibilityPermission();
+
     final hasOverlay = await _permissionService.hasOverlayPermission();
     final hasBattery = await _permissionService.hasBatteryOptimizationIgnored();
 
     print('DEBUG: Permission check results:');
     print('  - Usage: $hasUsage');
-    print('  - Accessibility: $hasAccessibility');
+
     print('  - Overlay: $hasOverlay');
     print('  - Battery: $hasBattery');
 
-    return hasUsage && hasAccessibility && hasOverlay && hasBattery;
+    return hasUsage && hasOverlay && hasBattery;
   }
 
   void _showPermissionBottomSheet() {

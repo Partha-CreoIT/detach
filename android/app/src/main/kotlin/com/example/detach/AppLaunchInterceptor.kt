@@ -124,24 +124,7 @@ class AppLaunchInterceptor : Service() {
         val blockedApps = prefs.getStringSet("blocked_apps", null)
         Log.d(TAG, "Blocked apps from prefs: $blockedApps")
         
-        // Also check if this app is in the permanently blocked list
-        if (permanentlyBlockedApps.contains(packageName)) {
-            Log.d(TAG, "$packageName is permanently blocked, preventing launch")
-            // Prevent the launch
-            handler.post {
-                try {
-                    val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
-                    am.killBackgroundProcesses(packageName)
-                    val homeIntent = Intent(Intent.ACTION_MAIN)
-                    homeIntent.addCategory(Intent.CATEGORY_HOME)
-                    homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    startActivity(homeIntent)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error preventing permanently blocked app launch: ${e.message}")
-                }
-            }
-            return
-        }
+
         
         // Only show pause if not already showing for this app and not in cooldown
         if (blockedApps != null && blockedApps.contains(packageName)) {

@@ -55,25 +55,19 @@ class PermissionController extends GetxController with WidgetsBindingObserver {
       _navigateToPage(0);
       return;
     }
-    if (!(await _permissionService.hasAccessibilityPermission())) {
+
+    if (!(await _permissionService.hasOverlayPermission())) {
       print(
-        '[DEBUG] PermissionController: Missing accessibility permission, navigating to page 1',
+        '[DEBUG] PermissionController: Missing overlay permission, navigating to page 1',
       );
       _navigateToPage(1);
       return;
     }
-    if (!(await _permissionService.hasOverlayPermission())) {
-      print(
-        '[DEBUG] PermissionController: Missing overlay permission, navigating to page 2',
-      );
-      _navigateToPage(2);
-      return;
-    }
     if (!(await _permissionService.hasBatteryOptimizationIgnored())) {
       print(
-        '[DEBUG] PermissionController: Missing battery optimization, navigating to page 3',
+        '[DEBUG] PermissionController: Missing battery optimization, navigating to page 2',
       );
-      _navigateToPage(3);
+      _navigateToPage(2);
       return;
     }
 
@@ -92,11 +86,6 @@ class PermissionController extends GetxController with WidgetsBindingObserver {
   Future<void> openUsageSettings() async {
     await AnalyticsService.to.logPermissionRequest('usage_stats');
     await PermissionService.openUsageSettings();
-  }
-
-  Future<void> openAccessibilitySettings() async {
-    await AnalyticsService.to.logPermissionRequest('accessibility');
-    await PermissionService.openAccessibilitySettings();
   }
 
   Future<void> openOverlaySettings() async {

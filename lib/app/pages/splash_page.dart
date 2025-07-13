@@ -71,10 +71,6 @@ class _SplashPageState extends State<SplashPage>
     final hasUsage = await permissionService.hasUsagePermission();
     debugPrint('SplashPage: Usage permission: $hasUsage');
 
-    final hasAccessibility =
-        await permissionService.hasAccessibilityPermission();
-    debugPrint('SplashPage: Accessibility permission: $hasAccessibility');
-
     final hasOverlay = await permissionService.hasOverlayPermission();
     debugPrint('SplashPage: Overlay permission: $hasOverlay');
 
@@ -82,18 +78,17 @@ class _SplashPageState extends State<SplashPage>
     debugPrint('SplashPage: Battery optimization: $hasBattery');
 
     debugPrint(
-      'SplashPage: Permissions check - Usage: $hasUsage, Accessibility: $hasAccessibility, Overlay: $hasOverlay, Battery: $hasBattery',
+      'SplashPage: Permissions check - Usage: $hasUsage, Overlay: $hasOverlay, Battery: $hasBattery',
     );
 
     // Log permission status
     if (hasUsage) await AnalyticsService.to.logPermissionGranted('usage_stats');
-    if (hasAccessibility)
-      await AnalyticsService.to.logPermissionGranted('accessibility');
+
     if (hasOverlay) await AnalyticsService.to.logPermissionGranted('overlay');
     if (hasBattery)
       await AnalyticsService.to.logPermissionGranted('battery_optimization');
 
-    if (hasUsage && hasAccessibility && hasOverlay && hasBattery) {
+    if (hasUsage && hasOverlay && hasBattery) {
       debugPrint('SplashPage: All permissions granted, navigating to home');
       await AnalyticsService.to.logFeatureUsage('all_permissions_granted');
       Get.offAllNamed('${AppRoutes.home}?tab=0'); // tab=0 for overview page

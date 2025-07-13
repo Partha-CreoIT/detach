@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controller/permission_controller.dart';
-import 'widgets/permission_accessibility_view.dart';
+
 import 'widgets/permission_battery_view.dart';
 import 'widgets/permission_overlay_view.dart';
 import 'widgets/permission_usage_view.dart';
@@ -29,7 +29,6 @@ class PermissionView extends GetView<PermissionController> {
           physics: const NeverScrollableScrollPhysics(), // Disable swiping
           children: const [
             PermissionUsageView(),
-            PermissionAccessibilityView(),
             PermissionOverlayView(),
             PermissionBatteryView(),
           ],

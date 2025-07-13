@@ -15,15 +15,6 @@ class PlatformService {
     }
   }
 
-  /// Opens Accessibility settings screen
-  static Future<void> openAccessibilitySettings() async {
-    try {
-      await _channel.invokeMethod('openAccessibilitySettings');
-    } catch (e) {
-      print("Error opening accessibility settings: $e");
-    }
-  }
-
   /// Opens Overlay permission settings screen
   static Future<void> openOverlaySettings() async {
     try {

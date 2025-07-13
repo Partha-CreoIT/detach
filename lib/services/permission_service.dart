@@ -11,17 +11,6 @@ class PermissionService {
     }
   }
 
-  Future<bool> hasAccessibilityPermission() async {
-    try {
-      return await _channel.invokeMethod<bool>(
-            'checkAccessibilityPermission',
-          ) ??
-          false;
-    } catch (_) {
-      return false;
-    }
-  }
-
   Future<bool> hasOverlayPermission() async {
     try {
       return await _channel.invokeMethod<bool>('checkOverlayPermission') ??
@@ -43,14 +32,6 @@ class PermissionService {
   static Future<void> openUsageSettings() async {
     try {
       await _channel.invokeMethod('openUsageSettings');
-    } catch (e) {
-      // handle error
-    }
-  }
-
-  static Future<void> openAccessibilitySettings() async {
-    try {
-      await _channel.invokeMethod('openAccessibilitySettings');
     } catch (e) {
       // handle error
     }

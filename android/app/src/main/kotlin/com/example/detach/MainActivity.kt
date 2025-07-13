@@ -31,11 +31,7 @@ class MainActivity : FlutterActivity() {
                     Log.d(TAG, "checkUsagePermission: $hasPermission")
                     result.success(hasPermission)
                 }
-                "checkAccessibilityPermission" -> {
-                    val hasPermission = isAccessibilityServiceEnabled()
-                    Log.d(TAG, "checkAccessibilityPermission: $hasPermission")
-                    result.success(hasPermission)
-                }
+
                 "checkOverlayPermission" -> {
                     val hasPermission = Settings.canDrawOverlays(this)
                     Log.d(TAG, "checkOverlayPermission: $hasPermission")
@@ -50,10 +46,7 @@ class MainActivity : FlutterActivity() {
                     openUsageAccessSettings()
                     result.success(null)
                 }
-                "openAccessibilitySettings" -> {
-                    openAccessibilitySettings()
-                    result.success(null)
-                }
+
                 "openOverlaySettings" -> {
                     openOverlaySettings()
                     result.success(null)
@@ -175,14 +168,7 @@ class MainActivity : FlutterActivity() {
         return mode == AppOpsManager.MODE_ALLOWED
     }
 
-    private fun isAccessibilityServiceEnabled(): Boolean {
-        val service = "$packageName/${MyAccessibilityService::class.java.canonicalName}"
-        val enabledServices = Settings.Secure.getString(
-            contentResolver,
-            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-        )
-        return enabledServices?.contains(service) == true
-    }
+
 
     private fun isIgnoringBatteryOptimizations(): Boolean {
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -195,11 +181,7 @@ class MainActivity : FlutterActivity() {
         startActivity(intent)
     }
 
-    private fun openAccessibilitySettings() {
-        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        startActivity(intent)
-    }
+
 
     private fun openOverlaySettings() {
         val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
