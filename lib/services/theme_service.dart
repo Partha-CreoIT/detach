@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:figma_squircle/figma_squircle.dart';
@@ -79,6 +80,9 @@ class ThemeService extends GetxController {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('themeMode', isDarkMode.value ? 'dark' : 'light');
 
+    // Update status bar style based on theme
+    _updateStatusBarStyle();
+
     Get.changeThemeMode(themeMode.value);
   }
 
@@ -101,7 +105,21 @@ class ThemeService extends GetxController {
     }
     await prefs.setString('themeMode', themeModeString);
 
+    // Update status bar style based on theme
+    _updateStatusBarStyle();
+
     Get.changeThemeMode(mode);
+  }
+
+  void _updateStatusBarStyle() {
+    SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: isDarkMode.value
+            ? Brightness.light
+            : Brightness.dark,
+      ),
+    );
   }
 
   // Light Theme

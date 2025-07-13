@@ -24,6 +24,14 @@ void main() async {
   Get.put(ThemeService());
   Get.put(AnalyticsService());
 
+  // Set status bar style based on theme
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark, // Black icons for light theme
+    ),
+  );
+
   runApp(const DetachApp());
 }
 

@@ -227,6 +227,7 @@ class HomeController extends GetxController {
   }
 
   void filterApps(String query) {
+    searchQuery.value = query;
     if (query.isEmpty) {
       filteredApps.assignAll(allApps);
     } else {
@@ -237,6 +238,14 @@ class HomeController extends GetxController {
       );
     }
   }
+
+  // Check if user is searching
+  bool get isSearching {
+    return searchQuery.isNotEmpty;
+  }
+
+  // Search query
+  final RxString searchQuery = ''.obs;
 
   void clearAllSelected() async {
     selectedAppPackages.clear();

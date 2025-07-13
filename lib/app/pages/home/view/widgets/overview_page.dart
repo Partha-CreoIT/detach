@@ -105,8 +105,9 @@ class OverviewPage extends GetView<HomeController> {
             Expanded(
               child: CustomScrollView(
                 slivers: [
-                  // Selected Apps Section
-                  if (controller.selectedApps.isNotEmpty) ...[
+                  // Selected Apps Section - Hide during search
+                  if (controller.selectedApps.isNotEmpty &&
+                      !controller.isSearching) ...[
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -145,31 +146,74 @@ class OverviewPage extends GetView<HomeController> {
                   ],
 
                   // All Apps Section
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: Text(
-                        'All Apps',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurface,
+                  if (!controller.isSearching) ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: Text(
+                          'All Apps',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) => _buildAppTile(
-                        context,
-                        controller.filteredApps[index],
+                  ],
+
+                  // Search Results or All Apps
+                  if (controller.filteredApps.isNotEmpty) ...[
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => _buildAppTile(
+                          context,
+                          controller.filteredApps[index],
+                        ),
+                        childCount: controller.filteredApps.length,
                       ),
-                      childCount: controller.filteredApps.length,
                     ),
-                  ),
+                  ] else if (controller.isSearching) ...[
+                    // No search results
+                    SliverFillRemaining(
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.search_off,
+                              size: 64,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No apps available for your search',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w500,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Try searching with different keywords',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
