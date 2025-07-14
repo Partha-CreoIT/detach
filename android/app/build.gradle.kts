@@ -29,6 +29,10 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // Required for Patrol
+        testInstrumentationRunner = "pl.leancode.patrol.PatrolJUnitRunner"
+        testInstrumentationRunnerArguments["clearPackageData"] = "true"
     }
 
     buildTypes {
@@ -37,6 +41,15 @@ android {
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
+        debug {
+            // Required for Patrol - disable minification
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+    }
+
+    testOptions {
+        execution = "ANDROIDX_TEST_ORCHESTRATOR"
     }
 }
 
@@ -52,4 +65,7 @@ dependencies {
     
     // Add Firebase Analytics
     implementation("com.google.firebase:firebase-analytics")
+
+    // Required for Patrol
+    androidTestUtil("androidx.test:orchestrator:1.5.1")
 }

@@ -1,0 +1,22 @@
+app_name: Detach
+android:
+  flavor: ""
+  targetPath: ""
+  testPackage: "com.example.detach.test"
+  testRunner: "androidx.test.runner.AndroidJUnitRunner"
+
+ios:
+  targetPath: ""
+  bundleId: ""
+
+tests:
+  - integration_test/*_test.dart
+
+devices:
+  android:
+    - Pixel 8a
+  ios:
+    - iPhone 15
+
+timeout: 300s
+screenshots_on_failure: true
