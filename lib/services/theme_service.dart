@@ -71,6 +71,9 @@ class ThemeService extends GetxController {
         isDarkMode.value = false;
         break;
     }
+
+    // Update status bar style after loading theme preference
+    updateStatusBarStyle();
   }
 
   Future<void> toggleTheme() async {
@@ -81,7 +84,7 @@ class ThemeService extends GetxController {
     await prefs.setString('themeMode', isDarkMode.value ? 'dark' : 'light');
 
     // Update status bar style based on theme
-    _updateStatusBarStyle();
+    updateStatusBarStyle();
 
     Get.changeThemeMode(themeMode.value);
   }
@@ -106,20 +109,39 @@ class ThemeService extends GetxController {
     await prefs.setString('themeMode', themeModeString);
 
     // Update status bar style based on theme
-    _updateStatusBarStyle();
+    updateStatusBarStyle();
 
     Get.changeThemeMode(mode);
+
+    // Force another update after theme change
+    Future.delayed(const Duration(milliseconds: 100), () {
+      updateStatusBarStyle();
+    });
   }
 
-  void _updateStatusBarStyle() {
+  void updateStatusBarStyle() {
+    // Simple approach - just use the isDarkMode value
+    final statusBarIconBrightness =
+        isDarkMode.value ? Brightness.light : Brightness.dark;
+
+    print('=== STATUS BAR UPDATE ===');
+    print('Theme Mode: ${themeMode.value}');
+    print('Is Dark Mode: ${isDarkMode.value}');
+    print('Status Bar Icon Brightness: $statusBarIconBrightness');
+
+    // Force update the status bar style
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: isDarkMode.value
-            ? Brightness.light
-            : Brightness.dark,
+        statusBarIconBrightness: statusBarIconBrightness,
+        statusBarBrightness:
+            statusBarIconBrightness == Brightness.dark
+                ? Brightness.light
+                : Brightness.dark,
       ),
     );
+
+    print('Status bar style applied');
   }
 
   // Light Theme
@@ -161,6 +183,11 @@ class ThemeService extends GetxController {
         foregroundColor: lightOnSurface,
         elevation: 0,
         centerTitle: true,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+        ),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: lightSurface,
@@ -260,6 +287,11 @@ class ThemeService extends GetxController {
         foregroundColor: darkOnSurface,
         elevation: 0,
         centerTitle: true,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+        ),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: darkSurface,

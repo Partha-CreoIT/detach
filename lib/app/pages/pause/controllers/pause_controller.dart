@@ -46,6 +46,16 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
       progressController.value = 0;
       timer?.cancel();
 
+      // Reset the pause flag so the pause screen can show again for this app
+      if (lockedPackageName != null) {
+        try {
+          await PlatformService.resetPauseFlag(lockedPackageName!);
+          debugPrint('Reset pause flag for: ${lockedPackageName}');
+        } catch (e) {
+          debugPrint('Error resetting pause flag: $e');
+        }
+      }
+
       // First remove the app from blocked list temporarily
       if (lockedPackageName != null) {
         debugPrint('Removing ${lockedPackageName} from blocked list...');
@@ -164,6 +174,14 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     if (lockedPackageName != null) {
       await AppCountService.incrementAppCount(lockedPackageName!);
       await PlatformService.permanentlyBlockApp(lockedPackageName!);
+
+      // Reset the pause flag since the user is taking action
+      try {
+        await PlatformService.resetPauseFlag(lockedPackageName!);
+        debugPrint('Reset pause flag for: ${lockedPackageName}');
+      } catch (e) {
+        debugPrint('Error resetting pause flag: $e');
+      }
     }
     await MethodChannel(
       'com.detach.app/permissions',
@@ -204,7 +222,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     AnalyticsService.to.logAppBlocked(lockedPackageName!);
     waterController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 3),
+      duration: const Duration(seconds: 6),
     );
     waterAnimation = Tween<double>(begin: 0.0, end: 1.45).animate(
       CurvedAnimation(parent: waterController, curve: Curves.easeInOut),

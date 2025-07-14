@@ -56,6 +56,16 @@ class PauseActivity : FlutterActivity() {
                         result.error("INVALID_ARG", "Package name is null.", null)
                     }
                 }
+                "resetPauseFlag" -> {
+                    val packageName = call.argument<String>("packageName")
+                    Log.d(TAG, "resetPauseFlag called for: $packageName")
+                    if (packageName != null) {
+                        resetPauseFlag(packageName)
+                        result.success(null)
+                    } else {
+                        result.error("INVALID_ARG", "Package name is null.", null)
+                    }
+                }
                 "launchApp" -> {
                     val packageName = call.argument<String>("packageName")
                     Log.d(TAG, "launchApp called for package: $packageName")
@@ -144,6 +154,12 @@ class PauseActivity : FlutterActivity() {
         try {
             Log.d(TAG, "Starting closeBothApps")
             
+            // Reset the pause flag since the user is taking action
+            val packageName = intent.getStringExtra("blocked_app_package")
+            if (packageName != null) {
+                resetPauseFlag(packageName)
+            }
+            
             // Get the ActivityManager
             val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
             
@@ -210,6 +226,12 @@ class PauseActivity : FlutterActivity() {
     }
 
     fun goToHomeAndFinish() {
+        // Reset the pause flag since the user is taking action
+        val packageName = intent.getStringExtra("blocked_app_package")
+        if (packageName != null) {
+            resetPauseFlag(packageName)
+        }
+        
         val homeIntent = Intent(Intent.ACTION_MAIN)
         homeIntent.addCategory(Intent.CATEGORY_HOME)
         homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -223,6 +245,14 @@ class PauseActivity : FlutterActivity() {
         intent.putExtra("package_name", packageName)
         sendBroadcast(intent)
         Log.d(TAG, "Reset app block for: $packageName")
+    }
+
+    private fun resetPauseFlag(packageName: String) {
+        // Send broadcast to AppLaunchInterceptor to reset the pause flag
+        val intent = Intent("com.example.detach.RESET_PAUSE_FLAG")
+        intent.putExtra("package_name", packageName)
+        sendBroadcast(intent)
+        Log.d(TAG, "Reset pause flag for: $packageName")
     }
 
     private fun launchApp(packageName: String) {

@@ -24,13 +24,8 @@ void main() async {
   Get.put(ThemeService());
   Get.put(AnalyticsService());
 
-  // Set status bar style based on theme
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark, // Black icons for light theme
-    ),
-  );
+  // Status bar style will be set by ThemeService based on current theme
+  // No need to set it statically here
 
   runApp(const DetachApp());
 }
@@ -41,16 +36,25 @@ class DetachApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetBuilder<ThemeService>(
-      builder: (themeService) => GetMaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'Detach',
-        themeMode: themeService.themeMode.value,
-        theme: ThemeService.lightTheme,
-        darkTheme: ThemeService.darkTheme,
-        navigatorObservers: [AnalyticsService.to.firebaseAnalyticsObserver!],
-        initialRoute: AppRoutes.splash,
-        getPages: AppPages.pages,
-      ),
+      builder: (themeService) {
+        return Obx(() {
+          // Update status bar style immediately when theme changes
+          themeService.updateStatusBarStyle();
+
+          return GetMaterialApp(
+            debugShowCheckedModeBanner: false,
+            title: 'Detach',
+            themeMode: themeService.themeMode.value,
+            theme: ThemeService.lightTheme,
+            darkTheme: ThemeService.darkTheme,
+            navigatorObservers: [
+              AnalyticsService.to.firebaseAnalyticsObserver!,
+            ],
+            initialRoute: AppRoutes.splash,
+            getPages: AppPages.pages,
+          );
+        });
+      },
     );
   }
 }

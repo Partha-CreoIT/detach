@@ -45,6 +45,12 @@ class AppLaunchInterceptor : Service() {
                     permanentlyBlockedApps.add(packageName)
                     Log.d(TAG, "Permanently blocked: $packageName")
                 }
+            } else if (intent?.action == "com.example.detach.RESET_PAUSE_FLAG") {
+                val packageName = intent.getStringExtra("package_name")
+                if (packageName != null && currentlyPausedApp == packageName) {
+                    currentlyPausedApp = null
+                    Log.d(TAG, "Reset pause flag for: $packageName")
+                }
             }
         }
     }
@@ -59,6 +65,7 @@ class AppLaunchInterceptor : Service() {
         val filter = IntentFilter().apply {
             addAction("com.example.detach.RESET_APP_BLOCK")
             addAction("com.example.detach.PERMANENTLY_BLOCK_APP")
+            addAction("com.example.detach.RESET_PAUSE_FLAG")
         }
         registerReceiver(resetBlockReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         
@@ -124,14 +131,17 @@ class AppLaunchInterceptor : Service() {
         val blockedApps = prefs.getStringSet("blocked_apps", null)
         Log.d(TAG, "Blocked apps from prefs: $blockedApps")
         
-
-        
         // Only show pause if not already showing for this app and not in cooldown
         if (blockedApps != null && blockedApps.contains(packageName)) {
+            // Reset currentlyPausedApp if it's been more than 10 seconds since last pause
+            // This allows the pause screen to show again for the same app after a reasonable delay
             if (currentlyPausedApp == packageName) {
-                Log.d(TAG, "Pause already shown for $packageName, skipping.")
-                return
+                Log.d(TAG, "Pause already shown for $packageName, but allowing after delay check")
+                // For now, let's allow showing the pause screen again immediately
+                // This will help with the issue where the pause screen doesn't show
+                currentlyPausedApp = null
             }
+            
             currentlyPausedApp = packageName
             Log.d(TAG, "Blocked app launch detected: $packageName - SHOWING PAUSE")
 
@@ -145,6 +155,8 @@ class AppLaunchInterceptor : Service() {
                     startActivity(pauseIntent)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error launching pause screen: ${e.message}")
+                    // Reset the flag if there was an error launching the pause screen
+                    currentlyPausedApp = null
                 }
             }
         }

@@ -36,61 +36,66 @@ class OverviewPage extends GetView<HomeController> {
               return Icon(iconData);
             }),
             onSelected: (ThemeMode mode) {
-              Get.find<ThemeService>().setThemeMode(mode);
+              final themeService = Get.find<ThemeService>();
+              themeService.setThemeMode(mode);
+              // Force status bar update
+              themeService.updateStatusBarStyle();
             },
-            itemBuilder: (BuildContext context) => [
-              PopupMenuItem<ThemeMode>(
-                value: ThemeMode.light,
-                child: Row(
-                  children: [
-                    const Icon(Icons.light_mode, color: Colors.orange),
-                    const SizedBox(width: 8),
-                    const Text('Light'),
-                    const Spacer(),
-                    Obx(() {
-                      final themeService = Get.find<ThemeService>();
-                      return themeService.themeMode.value == ThemeMode.light
-                          ? const Icon(Icons.check, color: Colors.green)
-                          : const SizedBox.shrink();
-                    }),
-                  ],
-                ),
-              ),
-              PopupMenuItem<ThemeMode>(
-                value: ThemeMode.dark,
-                child: Row(
-                  children: [
-                    const Icon(Icons.dark_mode, color: Colors.indigo),
-                    const SizedBox(width: 8),
-                    const Text('Dark'),
-                    const Spacer(),
-                    Obx(() {
-                      final themeService = Get.find<ThemeService>();
-                      return themeService.themeMode.value == ThemeMode.dark
-                          ? const Icon(Icons.check, color: Colors.green)
-                          : const SizedBox.shrink();
-                    }),
-                  ],
-                ),
-              ),
-              PopupMenuItem<ThemeMode>(
-                value: ThemeMode.system,
-                child: Row(
-                  children: [
-                    const Icon(Icons.brightness_auto, color: Colors.grey),
-                    const SizedBox(width: 8),
-                    const Text('System'),
-                    const Spacer(),
-                    Obx(() {
-                      final themeService = Get.find<ThemeService>();
-                      return themeService.themeMode.value == ThemeMode.system
-                          ? const Icon(Icons.check, color: Colors.green)
-                          : const SizedBox.shrink();
-                    }),
-                  ],
-                ),
-              ),
-            ],
+            itemBuilder:
+                (BuildContext context) => [
+                  PopupMenuItem<ThemeMode>(
+                    value: ThemeMode.light,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.light_mode, color: Colors.orange),
+                        const SizedBox(width: 8),
+                        const Text('Light'),
+                        const Spacer(),
+                        Obx(() {
+                          final themeService = Get.find<ThemeService>();
+                          return themeService.themeMode.value == ThemeMode.light
+                              ? const Icon(Icons.check, color: Colors.green)
+                              : const SizedBox.shrink();
+                        }),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<ThemeMode>(
+                    value: ThemeMode.dark,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.dark_mode, color: Colors.indigo),
+                        const SizedBox(width: 8),
+                        const Text('Dark'),
+                        const Spacer(),
+                        Obx(() {
+                          final themeService = Get.find<ThemeService>();
+                          return themeService.themeMode.value == ThemeMode.dark
+                              ? const Icon(Icons.check, color: Colors.green)
+                              : const SizedBox.shrink();
+                        }),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<ThemeMode>(
+                    value: ThemeMode.system,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.brightness_auto, color: Colors.grey),
+                        const SizedBox(width: 8),
+                        const Text('System'),
+                        const Spacer(),
+                        Obx(() {
+                          final themeService = Get.find<ThemeService>();
+                          return themeService.themeMode.value ==
+                                  ThemeMode.system
+                              ? const Icon(Icons.check, color: Colors.green)
+                              : const SizedBox.shrink();
+                        }),
+                      ],
+                    ),
+                  ),
+                ],
           ),
         ],
       ),
@@ -186,9 +191,10 @@ class OverviewPage extends GetView<HomeController> {
                             Icon(
                               Icons.search_off,
                               size: 64,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
+                              color:
+                                  Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                             ),
                             const SizedBox(height: 16),
                             Text(
@@ -204,9 +210,10 @@ class OverviewPage extends GetView<HomeController> {
                               'Try searching with different keywords',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurfaceVariant,
+                                color:
+                                    Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -255,16 +262,13 @@ class OverviewPage extends GetView<HomeController> {
         app.packageName,
       );
       return ListTile(
-        leading: app.icon != null
-            ? Image.memory(app.icon!, width: 40, height: 40)
-            : const Icon(Icons.apps, size: 40),
-        title: Text(app.name),
-        subtitle: Text(
-          app.packageName,
-          style: TextStyle(
-            fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+        leading:
+            app.icon != null
+                ? Image.memory(app.icon!, width: 40, height: 40)
+                : const Icon(Icons.apps, size: 40),
+        title: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          child: Text(app.name),
         ),
         trailing: Switch(
           value: isSelected,

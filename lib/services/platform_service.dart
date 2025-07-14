@@ -72,6 +72,17 @@ class PlatformService {
     }
   }
 
+  /// Resets the pause flag for a specific app
+  static Future<void> resetPauseFlag(String packageName) async {
+    try {
+      await _channel.invokeMethod('resetPauseFlag', {
+        'packageName': packageName,
+      });
+    } catch (e) {
+      print("Error resetting pause flag: $e");
+    }
+  }
+
   /// Permanently blocks an app (user clicked "I don't want to open")
   static Future<void> permanentlyBlockApp(String packageName) async {
     try {
