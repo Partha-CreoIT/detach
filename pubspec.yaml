@@ -38,7 +38,6 @@ dependencies:
   permission_handler: ^11.1.0
   installed_apps: ^1.6.0
   shared_preferences: ^2.5.3
-  wave: ^0.2.2
   package_info_plus: ^8.0.2
   figma_squircle: ^0.6.3
 

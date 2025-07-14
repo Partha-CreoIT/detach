@@ -28,7 +28,7 @@ class AppLaunchInterceptor : Service() {
     companion object {
         var currentlyPausedApp: String? = null
     }
-    
+
     private val resetBlockReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == "com.example.detach.RESET_APP_BLOCK") {
@@ -60,7 +60,7 @@ class AppLaunchInterceptor : Service() {
         Log.d(TAG, "AppLaunchInterceptor created")
         usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         handler = Handler(Looper.getMainLooper())
-        
+
         // Register broadcast receiver for reset block and permanent block
         val filter = IntentFilter().apply {
             addAction("com.example.detach.RESET_APP_BLOCK")
@@ -68,7 +68,7 @@ class AppLaunchInterceptor : Service() {
             addAction("com.example.detach.RESET_PAUSE_FLAG")
         }
         registerReceiver(resetBlockReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        
+
         startMonitoring()
     }
 
@@ -113,7 +113,7 @@ class AppLaunchInterceptor : Service() {
 
     private fun handleAppLaunch(packageName: String) {
         Log.d(TAG, "Checking if $packageName is blocked...")
-        
+
         // Check cooldown first
         val unblockTime = unblockedApps[packageName]
         if (unblockTime != null) {
@@ -126,11 +126,11 @@ class AppLaunchInterceptor : Service() {
                 unblockedApps.remove(packageName)
             }
         }
-        
+
         val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
         val blockedApps = prefs.getStringSet("blocked_apps", null)
         Log.d(TAG, "Blocked apps from prefs: $blockedApps")
-        
+
         // Only show pause if not already showing for this app and not in cooldown
         if (blockedApps != null && blockedApps.contains(packageName)) {
             // Reset currentlyPausedApp if it's been more than 10 seconds since last pause
@@ -141,7 +141,7 @@ class AppLaunchInterceptor : Service() {
                 // This will help with the issue where the pause screen doesn't show
                 currentlyPausedApp = null
             }
-            
+
             currentlyPausedApp = packageName
             Log.d(TAG, "Blocked app launch detected: $packageName - SHOWING PAUSE")
 
@@ -169,7 +169,8 @@ class AppLaunchInterceptor : Service() {
             unblockedApps.remove(packageName)
             // Add back to blocked apps in SharedPreferences
             val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
-            val blockedApps = prefs.getStringSet("blocked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+            val blockedApps =
+                prefs.getStringSet("blocked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
             blockedApps.add(packageName)
             prefs.edit().putStringSet("blocked_apps", blockedApps).apply()
         }
@@ -192,4 +193,4 @@ class AppLaunchInterceptor : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
-} 
+}

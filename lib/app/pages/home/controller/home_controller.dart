@@ -6,6 +6,7 @@ import 'package:detach/services/platform_service.dart';
 import 'package:detach/services/permission_service.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
+import 'package:detach/app/routes/app_routes.dart';
 
 class HomeController extends GetxController {
   final RxInt limitedAppsCount = 0.obs;
@@ -47,6 +48,10 @@ class HomeController extends GetxController {
     }
   }
 
+  Future<void> _logScreenView() async {
+    await AnalyticsService.to.logScreenView('home_page');
+  }
+
   Future<void> _loadApps() async {
     try {
       isLoading.value = true;
@@ -56,9 +61,10 @@ class HomeController extends GetxController {
       );
 
       // Filter out the current app (Detach) from the list
-      installedApps = installedApps
-          .where((app) => app.packageName != 'com.example.detach')
-          .toList();
+      installedApps =
+          installedApps
+              .where((app) => app.packageName != 'com.example.detach')
+              .toList();
 
       installedApps.sort(
         (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
@@ -71,6 +77,29 @@ class HomeController extends GetxController {
   }
 
   void toggleAppSelection(AppInfo app) async {
+    // If user is trying to add an app (lock it), check permissions first
+    if (!selectedAppPackages.contains(app.packageName)) {
+      print('DEBUG: User trying to lock app: ${app.name}');
+
+      // Check if user has bypassed permissions
+      final hasBypassed = await _checkAllPermissions();
+      print('DEBUG: Has bypassed permissions: $hasBypassed');
+
+      if (!hasBypassed) {
+        // Check if all permissions are granted
+        final hasAllPermissions = await _checkAllPermissions();
+        print('DEBUG: Has all permissions: $hasAllPermissions');
+
+        if (!hasAllPermissions) {
+          // Show permission bottom sheet and don't lock the app
+          print('DEBUG: Showing permission bottom sheet');
+          _showPermissionBottomSheet();
+          return;
+        }
+      }
+    }
+
+    // If removing app or permissions are granted, proceed normally
     if (selectedAppPackages.contains(app.packageName)) {
       selectedAppPackages.remove(app.packageName);
       AnalyticsService.to.logAppUnblocked(app.name);
@@ -199,7 +228,7 @@ class HomeController extends GetxController {
                   child: ElevatedButton(
                     onPressed: () {
                       Get.back();
-                      Get.toNamed('/permission');
+                      Get.toNamed(AppRoutes.permission);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange,
@@ -279,9 +308,5 @@ class HomeController extends GetxController {
     return allApps
         .where((app) => selectedAppPackages.contains(app.packageName))
         .toList();
-  }
-
-  Future<void> _logScreenView() async {
-    await AnalyticsService.to.logScreenView('home');
   }
 }

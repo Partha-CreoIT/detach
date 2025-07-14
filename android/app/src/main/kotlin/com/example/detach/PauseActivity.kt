@@ -22,7 +22,7 @@ class PauseActivity : FlutterActivity() {
         val showLock = intent.getBooleanExtra("show_lock", true) // Default to true
         Log.d(TAG, "onCreate called with blocked package: $packageName, showLock: $showLock")
         Log.d(TAG, "Intent extras: ${intent.extras}")
-        
+
         // Only show pause screen if properly launched with a blocked app
         if (packageName == null) {
             Log.d(TAG, "Invalid pause screen launch, finishing activity")
@@ -84,12 +84,12 @@ class PauseActivity : FlutterActivity() {
                         val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
                         prefs.edit().putStringSet("blocked_apps", apps.toSet()).apply()
                         Log.d(TAG, "Saved blocked apps: $apps")
-                        
+
                         // Start the AppLaunchInterceptor service
                         val interceptorIntent = Intent(this, AppLaunchInterceptor::class.java)
                         startService(interceptorIntent)
                         Log.d(TAG, "Started AppLaunchInterceptor service")
-                        
+
                         result.success(null)
                     } else {
                         result.error("INVALID_ARG", "No apps provided", null)
@@ -104,7 +104,7 @@ class PauseActivity : FlutterActivity() {
                         intent.putExtra("package_name", packageName)
                         sendBroadcast(intent)
                         Log.d(TAG, "Sent permanent block broadcast for: $packageName")
-                        
+
                         // Also add to blocked apps list in SharedPreferences if not already there
                         val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
                         val blockedApps = prefs.getStringSet("blocked_apps", mutableSetOf()) ?: mutableSetOf()
@@ -114,7 +114,7 @@ class PauseActivity : FlutterActivity() {
                             prefs.edit().putStringSet("blocked_apps", newBlockedApps).apply()
                             Log.d(TAG, "Added $packageName to blocked apps list")
                         }
-                        
+
                         result.success(null)
                     } else {
                         result.error("INVALID_ARG", "Package name is null.", null)
@@ -153,33 +153,33 @@ class PauseActivity : FlutterActivity() {
     private fun closeBothApps() {
         try {
             Log.d(TAG, "Starting closeBothApps")
-            
+
             // Reset the pause flag since the user is taking action
             val packageName = intent.getStringExtra("blocked_app_package")
             if (packageName != null) {
                 resetPauseFlag(packageName)
             }
-            
+
             // Get the ActivityManager
             val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
-            
+
             // Get recent tasks to find the blocked app
             val recentTasks = am.getRecentTasks(10, android.app.ActivityManager.RECENT_WITH_EXCLUDED)
-            
+
             // Find and close the blocked app
             for (task in recentTasks) {
                 val baseIntent = task.baseIntent
                 val packageName = baseIntent.component?.packageName
-                
+
                 if (packageName != null && packageName != this.packageName) {
                     Log.d(TAG, "Found app to close: $packageName")
-                    
+
                     // Try multiple methods to force stop the app
                     try {
                         // Method 1: Kill background processes
                         am.killBackgroundProcesses(packageName)
                         Log.d(TAG, "Killed background processes for: $packageName")
-                        
+
                         // Method 2: Try to force stop using shell command (requires root or system app)
                         try {
                             val process = Runtime.getRuntime().exec(arrayOf("su", "-c", "am force-stop $packageName"))
@@ -188,7 +188,7 @@ class PauseActivity : FlutterActivity() {
                         } catch (e: Exception) {
                             Log.d(TAG, "Could not force stop $packageName using shell command: ${e.message}")
                         }
-                        
+
                         // Method 3: Try to clear recent tasks by restarting the launcher
                         try {
                             val homeIntent = Intent(Intent.ACTION_MAIN)
@@ -199,24 +199,24 @@ class PauseActivity : FlutterActivity() {
                         } catch (e: Exception) {
                             Log.d(TAG, "Could not send home intent: ${e.message}")
                         }
-                        
+
                     } catch (e: Exception) {
                         Log.e(TAG, "Error killing app $packageName: ${e.message}")
                     }
                 }
             }
-            
+
             // Add a small delay to ensure the blocked app is killed
             Thread.sleep(500)
-            
+
             // Close the current app (Detach)
             Log.d(TAG, "Closing current app")
             finishAndRemoveTask()
-            
+
             // Force stop completely
             finishAffinity()
             android.os.Process.killProcess(android.os.Process.myPid())
-            
+
         } catch (e: Exception) {
             Log.e(TAG, "Error closing apps: ${e.message}")
             // Even if there's an error, try to close the current app
@@ -231,7 +231,7 @@ class PauseActivity : FlutterActivity() {
         if (packageName != null) {
             resetPauseFlag(packageName)
         }
-        
+
         val homeIntent = Intent(Intent.ACTION_MAIN)
         homeIntent.addCategory(Intent.CATEGORY_HOME)
         homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
