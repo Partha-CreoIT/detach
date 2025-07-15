@@ -3,10 +3,8 @@ import 'package:get/get.dart';
 import 'package:installed_apps/app_info.dart';
 import '../../controller/home_controller.dart';
 import 'package:detach/services/theme_service.dart';
-
 class OverviewPage extends GetView<HomeController> {
   const OverviewPage({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -103,7 +101,6 @@ class OverviewPage extends GetView<HomeController> {
         if (controller.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
         }
-
         return Column(
           children: [
             _buildSearchBar(context),
@@ -149,7 +146,6 @@ class OverviewPage extends GetView<HomeController> {
                     ),
                     const SliverToBoxAdapter(child: Divider(height: 32)),
                   ],
-
                   // All Apps Section
                   if (!controller.isSearching) ...[
                     SliverToBoxAdapter(
@@ -169,7 +165,6 @@ class OverviewPage extends GetView<HomeController> {
                       ),
                     ),
                   ],
-
                   // Search Results or All Apps
                   if (controller.filteredApps.isNotEmpty) ...[
                     SliverList(
@@ -229,7 +224,6 @@ class OverviewPage extends GetView<HomeController> {
       }),
     );
   }
-
   Widget _buildSearchBar(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -255,7 +249,6 @@ class OverviewPage extends GetView<HomeController> {
       ),
     );
   }
-
   Widget _buildAppTile(BuildContext context, AppInfo app) {
     return Obx(() {
       final isSelected = controller.selectedAppPackages.contains(

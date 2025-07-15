@@ -1,5 +1,4 @@
 package com.example.detach
-
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
@@ -12,7 +11,6 @@ import android.os.Looper
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
-
 class AppBlockerService : Service() {
     
     private val TAG = "AppBlockerService"
@@ -25,7 +23,7 @@ class AppBlockerService : Service() {
     
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "AppBlockerService created")
+        
         
         usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         scheduledExecutor = Executors.newScheduledThreadPool(1)
@@ -39,7 +37,7 @@ class AppBlockerService : Service() {
             try {
                 monitorAppUsage()
             } catch (e: Exception) {
-                Log.e(TAG, "Error monitoring app usage: ${e.message}")
+                
             }
         }, 0, 100, TimeUnit.MILLISECONDS) // Check every 100ms
     }
@@ -70,10 +68,10 @@ class AppBlockerService : Service() {
         val unblockTime = unblockedApps[packageName]
         if (unblockTime != null) {
             if ((currentTime - unblockTime) < cooldownMillis) {
-                Log.d(TAG, "$packageName is in cooldown. Ignoring.")
+                
                 return
             } else {
-                Log.d(TAG, "$packageName cooldown expired.")
+                
                 unblockedApps.remove(packageName)
             }
         }
@@ -83,7 +81,7 @@ class AppBlockerService : Service() {
         val blockedApps = prefs.getStringSet("blocked_apps", null)
         
         if (blockedApps != null && blockedApps.contains(packageName)) {
-            Log.d(TAG, "Blocked app detected: $packageName")
+            
             
             // Add to cooldown
             unblockedApps[packageName] = currentTime
@@ -108,20 +106,20 @@ class AppBlockerService : Service() {
                     startActivity(pauseIntent)
                     
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error launching pause activity: ${e.message}")
+                    
                 }
             }
         }
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "AppBlockerService started")
+        
         return START_STICKY // Restart service if killed
     }
     
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(TAG, "AppBlockerService destroyed")
+        
         scheduledExecutor.shutdown()
     }
     

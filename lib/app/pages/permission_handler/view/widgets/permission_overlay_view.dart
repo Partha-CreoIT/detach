@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:detach/app/pages/permission_handler/controller/permission_controller.dart';
 import 'package:figma_squircle/figma_squircle.dart';
-
 class PermissionOverlayView extends GetView<PermissionController> {
   const PermissionOverlayView({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Padding(

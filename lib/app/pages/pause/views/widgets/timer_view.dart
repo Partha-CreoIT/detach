@@ -4,10 +4,8 @@ import 'package:get/get.dart';
 import '../../controllers/pause_controller.dart';
 import 'dart:math';
 import 'package:flutter/services.dart';
-
 class TimerView extends GetView<PauseController> {
   const TimerView({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -18,7 +16,6 @@ class TimerView extends GetView<PauseController> {
           child: Column(
             children: [
               const SizedBox(height: 60),
-
               // Header Section
               Column(
                 children: [
@@ -48,9 +45,7 @@ class TimerView extends GetView<PauseController> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 80),
-
               // Timer Slider Section
               Material(
                 color: Colors.white,
@@ -75,7 +70,6 @@ class TimerView extends GetView<PauseController> {
                         ),
                       ),
                       const SizedBox(height: 12),
-
                       // Time indicators positioned at arc endpoints
                       SizedBox(
                         height: 16,
@@ -113,11 +107,9 @@ class TimerView extends GetView<PauseController> {
                   ),
                 ),
               ),
-
               const SizedBox(
                 height: 20,
               ),
-
               Text(
                 'After this, I swear I\'m done. (Seriously!)',
                 style: TextStyle(
@@ -127,7 +119,6 @@ class TimerView extends GetView<PauseController> {
                 ),
               ),
               const Spacer(),
-
               // Start Button
               Container(
                 width: double.infinity,
@@ -180,7 +171,6 @@ class TimerView extends GetView<PauseController> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 40),
             ],
           ),
@@ -189,28 +179,23 @@ class TimerView extends GetView<PauseController> {
     );
   }
 }
-
 class ModernTimeSlider extends StatefulWidget {
   final int value;
   final ValueChanged<int> onChanged;
-
   const ModernTimeSlider({
     super.key,
     required this.value,
     required this.onChanged,
   });
-
   @override
   State<ModernTimeSlider> createState() => _ModernTimeSliderState();
 }
-
 class _ModernTimeSliderState extends State<ModernTimeSlider>
     with TickerProviderStateMixin {
   late int _value;
   final _sliderKey = GlobalKey();
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
-
   @override
   void initState() {
     _value = widget.value;
@@ -224,7 +209,6 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
     _pulseController.repeat(reverse: true);
     super.initState();
   }
-
   @override
   void didUpdateWidget(covariant ModernTimeSlider oldWidget) {
     if (widget.value != oldWidget.value) {
@@ -234,25 +218,20 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
     }
     super.didUpdateWidget(oldWidget);
   }
-
   @override
   void dispose() {
     _pulseController.dispose();
     super.dispose();
   }
-
   void _updatePosition(Offset localPos) {
     final box = _sliderKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return;
-
     final size = box.size;
     final center = Offset(size.width / 2, size.height);
     final dx = localPos.dx - center.dx;
     final dy = localPos.dy - center.dy;
-
     double angle = atan2(dy, dx);
     if (angle < 0) angle += 2 * pi;
-
     if (angle >= pi && angle <= 2 * pi) {
       double pct = ((angle - pi) / pi);
       int minutes = (pct * 29 + 1).round().clamp(1, 30);
@@ -265,7 +244,6 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
       }
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -283,13 +261,11 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
               painter: _ModernTrackPainter(),
               size: const Size(320, 200),
             ),
-
             // Progress track
             CustomPaint(
               painter: _ModernProgressPainter(_value / 30),
               size: const Size(320, 200),
             ),
-
             // Timer display at the bottom of the slider area
             Positioned(
               bottom: 10,
@@ -347,7 +323,6 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
                 },
               ),
             ),
-
             // Handle
             CustomPaint(
               painter: _ModernHandlePainter(_value / 30),
@@ -359,19 +334,16 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
     );
   }
 }
-
 class _ModernTrackPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height);
     final radius = min(size.width / 2, size.height) - 20;
-
     final trackPaint = Paint()
       ..color = const Color(0xFFE5E7EB)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 8
       ..strokeCap = StrokeCap.round;
-
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
       pi,
@@ -380,21 +352,16 @@ class _ModernTrackPainter extends CustomPainter {
       trackPaint,
     );
   }
-
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-
 class _ModernProgressPainter extends CustomPainter {
   final double progress;
-
   _ModernProgressPainter(this.progress);
-
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height);
     final radius = min(size.width / 2, size.height) - 20;
-
     final progressPaint = Paint()
       ..shader = const LinearGradient(
         colors: [Color(0xFF6B75F2), Color(0xFF8B5CF6)],
@@ -404,7 +371,6 @@ class _ModernProgressPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 8
       ..strokeCap = StrokeCap.round;
-
     double sweepAngle = pi * progress;
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
@@ -414,33 +380,26 @@ class _ModernProgressPainter extends CustomPainter {
       progressPaint,
     );
   }
-
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
-
 class _ModernHandlePainter extends CustomPainter {
   final double progress;
-
   _ModernHandlePainter(this.progress);
-
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height);
     final radius = min(size.width / 2, size.height) - 20;
-
     final handleAngle = pi + (pi * progress);
     final handleOffset = Offset(
       center.dx + radius * cos(handleAngle),
       center.dy + radius * sin(handleAngle),
     );
-
     // Outer glow
     final glowPaint = Paint()
       ..color = const Color(0xFF6B75F2).withOpacity(0.3)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(handleOffset, 16, glowPaint);
-
     // Main handle
     final handlePaint = Paint()
       ..shader = const RadialGradient(
@@ -448,7 +407,6 @@ class _ModernHandlePainter extends CustomPainter {
       ).createShader(Rect.fromCircle(center: handleOffset, radius: 12))
       ..style = PaintingStyle.fill;
     canvas.drawCircle(handleOffset, 12, handlePaint);
-
     // Inner highlight
     final highlightPaint = Paint()
       ..color = Colors.white.withOpacity(0.8)
@@ -459,7 +417,6 @@ class _ModernHandlePainter extends CustomPainter {
       highlightPaint,
     );
   }
-
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

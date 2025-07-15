@@ -3,13 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:figma_squircle/figma_squircle.dart';
-
 class ThemeService extends GetxController {
   static ThemeService get to => Get.find();
-
   final RxBool isDarkMode = false.obs;
   final Rx<ThemeMode> themeMode = ThemeMode.system.obs;
-
   // Light Theme Colors
   static const Color lightPrimary = Color(0xFF6366F1); // Indigo
   static const Color lightOnPrimary = Color(0xFFFFFFFF);
@@ -27,7 +24,6 @@ class ThemeService extends GetxController {
   static const Color lightOutlineVariant = Color(0xFFE2E8F0);
   static const Color lightError = Color(0xFFEF4444);
   static const Color lightOnError = Color(0xFFFFFFFF);
-
   // Dark Theme Colors
   static const Color darkPrimary = Color(0xFF818CF8); // Lighter Indigo
   static const Color darkOnPrimary = Color(0xFF1E293B);
@@ -45,17 +41,14 @@ class ThemeService extends GetxController {
   static const Color darkOutlineVariant = Color(0xFF334155);
   static const Color darkError = Color(0xFFF87171);
   static const Color darkOnError = Color(0xFF1E293B);
-
   @override
   void onInit() {
     super.onInit();
     _loadThemePreference();
   }
-
   Future<void> _loadThemePreference() async {
     final prefs = await SharedPreferences.getInstance();
     final themeModeString = prefs.getString('themeMode') ?? 'system';
-
     switch (themeModeString) {
       case 'light':
         themeMode.value = ThemeMode.light;
@@ -71,28 +64,21 @@ class ThemeService extends GetxController {
         isDarkMode.value = false;
         break;
     }
-
     // Update status bar style after loading theme preference
     updateStatusBarStyle();
   }
-
   Future<void> toggleTheme() async {
     isDarkMode.value = !isDarkMode.value;
     themeMode.value = isDarkMode.value ? ThemeMode.dark : ThemeMode.light;
-
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('themeMode', isDarkMode.value ? 'dark' : 'light');
-
     // Update status bar style based on theme
     updateStatusBarStyle();
-
     Get.changeThemeMode(themeMode.value);
   }
-
   Future<void> setThemeMode(ThemeMode mode) async {
     themeMode.value = mode;
     isDarkMode.value = mode == ThemeMode.dark;
-
     final prefs = await SharedPreferences.getInstance();
     String themeModeString;
     switch (mode) {
@@ -107,28 +93,22 @@ class ThemeService extends GetxController {
         break;
     }
     await prefs.setString('themeMode', themeModeString);
-
     // Update status bar style based on theme
     updateStatusBarStyle();
-
     Get.changeThemeMode(mode);
-
     // Force another update after theme change
     Future.delayed(const Duration(milliseconds: 100), () {
       updateStatusBarStyle();
     });
   }
-
   void updateStatusBarStyle() {
     // Simple approach - just use the isDarkMode value
     final statusBarIconBrightness =
         isDarkMode.value ? Brightness.light : Brightness.dark;
-
-    print('=== STATUS BAR UPDATE ===');
-    print('Theme Mode: ${themeMode.value}');
-    print('Is Dark Mode: ${isDarkMode.value}');
-    print('Status Bar Icon Brightness: $statusBarIconBrightness');
-
+    
+    
+    
+    
     // Force update the status bar style
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
@@ -140,10 +120,8 @@ class ThemeService extends GetxController {
                 : Brightness.dark,
       ),
     );
-
-    print('Status bar style applied');
+    
   }
-
   // Light Theme
   static ThemeData get lightTheme {
     return ThemeData(
@@ -247,7 +225,6 @@ class ThemeService extends GetxController {
       ),
     );
   }
-
   // Dark Theme
   static ThemeData get darkTheme {
     return ThemeData(

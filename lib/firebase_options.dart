@@ -3,7 +3,6 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
-
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
 /// Example:
@@ -39,7 +38,6 @@ class DefaultFirebaseOptions {
         );
     }
   }
-
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyD2bgKMZjYxNaBy8EkQoJ2cKWas80TI18Y',
     appId: '1:143537014188:web:25cef2a3490a66c1ea2609',
@@ -49,7 +47,6 @@ class DefaultFirebaseOptions {
     storageBucket: 'detach-creo.firebasestorage.app',
     measurementId: 'G-7QW1EMGJCC',
   );
-
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCwfx-5FZuUk31IW4NzV5Bh7Xb6Q8nRsuc',
     appId: '1:143537014188:android:74e6e858b714ea9dea2609',
@@ -57,7 +54,6 @@ class DefaultFirebaseOptions {
     projectId: 'detach-creo',
     storageBucket: 'detach-creo.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyCIAg4FqZ2q5XzcYXwJIbFEiYb6c2sgveM',
     appId: '1:143537014188:ios:c721daa8e4c41ad9ea2609',
@@ -66,7 +62,6 @@ class DefaultFirebaseOptions {
     storageBucket: 'detach-creo.firebasestorage.app',
     iosBundleId: 'com.example.detach',
   );
-
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyCIAg4FqZ2q5XzcYXwJIbFEiYb6c2sgveM',
     appId: '1:143537014188:ios:c721daa8e4c41ad9ea2609',
@@ -75,7 +70,6 @@ class DefaultFirebaseOptions {
     storageBucket: 'detach-creo.firebasestorage.app',
     iosBundleId: 'com.example.detach',
   );
-
   static const FirebaseOptions windows = FirebaseOptions(
     apiKey: 'AIzaSyD2bgKMZjYxNaBy8EkQoJ2cKWas80TI18Y',
     appId: '1:143537014188:web:f3eeffae46b6aef9ea2609',

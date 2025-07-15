@@ -2,10 +2,8 @@ import 'package:figma_squircle/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:detach/app/pages/permission_handler/controller/permission_controller.dart';
-
 class PermissionBatteryView extends GetView<PermissionController> {
   const PermissionBatteryView({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -32,7 +30,6 @@ class PermissionBatteryView extends GetView<PermissionController> {
                 ),
               ),
               const SizedBox(height: 24),
-
               // Title
               const Text(
                 'Battery Optimization',
@@ -40,7 +37,6 @@ class PermissionBatteryView extends GetView<PermissionController> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-
               // Description
               const Text(
                 'To work properly in the background, Detach needs to be excluded from battery optimization.',
@@ -48,7 +44,6 @@ class PermissionBatteryView extends GetView<PermissionController> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-
               // Instructions
               Container(
                 padding: const EdgeInsets.all(16),
@@ -81,7 +76,6 @@ class PermissionBatteryView extends GetView<PermissionController> {
             ],
           ),
           const SizedBox(height: 24),
-
           // Button
           SizedBox(
             width: double.infinity,

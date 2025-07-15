@@ -3,10 +3,8 @@ import 'package:get/get.dart';
 import 'package:figma_squircle/figma_squircle.dart';
 import '../controllers/pause_controller.dart';
 import 'widgets/timer_view.dart';
-
 class PauseView extends GetView<PauseController> {
   const PauseView({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -20,9 +18,9 @@ class PauseView extends GetView<PauseController> {
             // Message Text
             Obx(
               () => !controller.showButtons.value
-                  ? Center(
+                  ? const Center(
                       child: Text(
-                        "It's time to take a breath",
+                        "It's time to take a deep breath",
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
@@ -33,7 +31,6 @@ class PauseView extends GetView<PauseController> {
                     )
                   : const SizedBox.shrink(),
             ),
-
             // Animated Container
             AnimatedBuilder(
               animation: controller.waterAnimation,
@@ -48,25 +45,24 @@ class PauseView extends GetView<PauseController> {
                   right: 0,
                   height: screenHeight * controller.waterAnimation.value,
                   child: AnimatedContainer(
-                    duration: const Duration(seconds: 8), // Slower animation
+                    duration: const Duration(seconds: 6), // Slower animation
                     curve: Curves.easeInOut,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.bottomLeft,
                         end: Alignment.topRight,
                         colors: [
-                          const Color(0xFF667eea), // Electric blue
-                          const Color(0xFF764ba2), // Purple
-                          const Color(0xFF00d4ff), // Cyan
+                          Color(0xFF667eea), // Electric blue
+                          Color(0xFF764ba2), // Purple
+                          Color(0xFF00d4ff), // Cyan
                         ],
-                        stops: const [0.0, 0.5, 1.0],
+                        stops: [0.0, 0.5, 1.0],
                       ),
                     ),
                   ),
                 );
               },
             ),
-
             // Buttons and Counter
             Obx(
               () =>
@@ -80,7 +76,7 @@ class PauseView extends GetView<PauseController> {
                           const Spacer(),
                           Text(
                             controller.attemptsToday.value.toString(),
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 120,
                               fontWeight: FontWeight.bold,
                               color: Colors.black,
@@ -104,7 +100,7 @@ class PauseView extends GetView<PauseController> {
                             style: FilledButton.styleFrom(
                               backgroundColor: const Color(0xFF6B75F2),
                               minimumSize: const Size(double.infinity, 56),
-                              shape: SmoothRectangleBorder(
+                              shape: const SmoothRectangleBorder(
                                 borderRadius: SmoothBorderRadius.all(
                                   SmoothRadius(
                                     cornerRadius: 16,
@@ -127,7 +123,7 @@ class PauseView extends GetView<PauseController> {
                             style: TextButton.styleFrom(
                               minimumSize: const Size(double.infinity, 44),
                               foregroundColor: const Color(0xFF6B75F2),
-                              shape: SmoothRectangleBorder(
+                              shape: const SmoothRectangleBorder(
                                 borderRadius: SmoothBorderRadius.all(
                                   SmoothRadius(
                                     cornerRadius: 16,
@@ -146,7 +142,6 @@ class PauseView extends GetView<PauseController> {
                     )
                   : const SizedBox.shrink(),
             ),
-
             // Timer
             Obx(
               () => controller.timerStarted.value
@@ -156,13 +151,13 @@ class PauseView extends GetView<PauseController> {
                         children: [
                           Text(
                             controller.start.value.toString(),
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 120,
                               fontWeight: FontWeight.bold,
                               color: Colors.black,
                             ),
                           ),
-                          Text(
+                          const Text(
                             'seconds remaining',
                             style: TextStyle(
                               fontSize: 18,
