@@ -13,19 +13,20 @@ class PauseView extends GetView<PauseController> {
         return const TimerView();
       }
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: Stack(
           children: [
             // Message Text
             Obx(
               () => !controller.showButtons.value
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         "It's time to take a deep breath",
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                          color: Theme.of(context).textTheme.bodyLarge?.color ??
+                              Colors.black87,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -67,7 +68,7 @@ class PauseView extends GetView<PauseController> {
             // Buttons and Counter
             Obx(
               () =>
-                  controller.showButtons.value && !controller.timerStarted.value
+                  controller.showButtons.value
                       ? Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24),
                           child: Column(
@@ -76,10 +77,14 @@ class PauseView extends GetView<PauseController> {
                               const Spacer(),
                               Text(
                                 controller.attemptsToday.value.toString(),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 120,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black,
+                                  color: Theme.of(context)
+                                          .textTheme
+                                          .bodyLarge
+                                          ?.color ??
+                                      Colors.black,
                                 ),
                               ),
                               const SizedBox(height: 16),
@@ -87,9 +92,13 @@ class PauseView extends GetView<PauseController> {
                                 () => Text(
                                   'attempts to open ${controller.displayAppName.isNotEmpty ? controller.displayAppName : (controller.lockedPackageName ?? "App")} within the\nlast 24 hours.',
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 18,
-                                    color: Colors.black87,
+                                    color: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.color ??
+                                        Colors.black87,
                                     height: 1.5,
                                   ),
                                 ),
@@ -142,33 +151,7 @@ class PauseView extends GetView<PauseController> {
                         )
                       : const SizedBox.shrink(),
             ),
-            // Timer
-            Obx(
-              () => controller.timerStarted.value
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            controller.start.value.toString(),
-                            style: const TextStyle(
-                              fontSize: 120,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                          ),
-                          const Text(
-                            'seconds remaining',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.black54,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
+            // Timer is now handled by Android service, so no need to display countdown here
           ],
         ),
       );

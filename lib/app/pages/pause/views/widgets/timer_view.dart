@@ -10,7 +10,7 @@ class TimerView extends GetView<PauseController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFBFF),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -34,13 +34,15 @@ class TimerView extends GetView<PauseController> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Text(
+                  Text(
                     'Choose wisely… \nor suffer distractions!',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A1A1A),
+                      color:
+                          Theme.of(context).textTheme.headlineMedium?.color ??
+                              const Color(0xFF1A1A1A),
                       letterSpacing: -0.5,
                     ),
                   ),
@@ -49,7 +51,7 @@ class TimerView extends GetView<PauseController> {
               const SizedBox(height: 80),
               // Timer Slider Section
               Material(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 elevation: 4,
                 shape: const SmoothRectangleBorder(
                   borderRadius: SmoothBorderRadius.all(
@@ -82,7 +84,11 @@ class TimerView extends GetView<PauseController> {
                                 '1m',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color:
+                                  color: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.color
+                                          ?.withOpacity(0.4) ??
                                       const Color(0xFF1A1A1A).withOpacity(0.4),
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -94,7 +100,11 @@ class TimerView extends GetView<PauseController> {
                                 '30m',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color:
+                                  color: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.color
+                                          ?.withOpacity(0.4) ??
                                       const Color(0xFF1A1A1A).withOpacity(0.4),
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -115,7 +125,12 @@ class TimerView extends GetView<PauseController> {
                 'After this, I swear I\'m done. (Seriously!)',
                 style: TextStyle(
                   fontSize: 16,
-                  color: const Color(0xFF1A1A1A).withOpacity(0.6),
+                  color: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.color
+                          ?.withOpacity(0.6) ??
+                      const Color(0xFF1A1A1A).withOpacity(0.6),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -285,7 +300,7 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
                       width: 100,
                       height: 100,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Theme.of(context).cardColor,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
