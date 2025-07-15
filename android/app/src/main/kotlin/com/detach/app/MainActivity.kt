@@ -71,7 +71,7 @@ class MainActivity : FlutterActivity() {
                             getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
                         val runningServices = am.getRunningServices(Integer.MAX_VALUE)
                         val isServiceRunning =
-                            runningServices.any { it.service.className == "com.example.detach.AppLaunchInterceptor" }
+                            runningServices.any { it.service.className == "com.detach.app.AppLaunchInterceptor" }
 
                     } else {
 
@@ -120,7 +120,7 @@ class MainActivity : FlutterActivity() {
                         getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
                     val runningServices = am.getRunningServices(Integer.MAX_VALUE)
                     val isRunning =
-                        runningServices.any { it.service.className == "com.example.detach.AppLaunchInterceptor" }
+                        runningServices.any { it.service.className == "com.detach.app.AppLaunchInterceptor" }
 
                     result.success(isRunning)
                 }
@@ -167,6 +167,8 @@ class MainActivity : FlutterActivity() {
         return pm.isIgnoringBatteryOptimizations(packageName)
     }
     private fun openUsageAccessSettings() {
+        // Unfortunately, there's no direct way to grant usage access like battery optimization
+        // We have to send the user to the system settings
         val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
         startActivity(intent)

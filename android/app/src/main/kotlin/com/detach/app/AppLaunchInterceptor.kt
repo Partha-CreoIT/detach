@@ -12,6 +12,7 @@ import android.os.Handler
 import android.os.Looper
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+
 class AppLaunchInterceptor : Service() {
     private val TAG = "AppLaunchInterceptor"
     private lateinit var usageStatsManager: UsageStatsManager
@@ -22,9 +23,20 @@ class AppLaunchInterceptor : Service() {
     private val unblockedApps = mutableMapOf<String, Long>()
     private val cooldownMillis = 5000L // 5 seconds
     private var lastForegroundApp: String? = null
+    
+    // Session tracking for timer-based app usage
+    private data class AppSession(
+        val startTime: Long,
+        val durationSeconds: Int
+    )
+    private val appSessions = mutableMapOf<String, AppSession>()
+    
     companion object {
         var currentlyPausedApp: String? = null
+        const val APP_SESSION_PREFIX = "app_session_"
+        const val APP_SESSION_DURATION_SUFFIX = "_duration"
     }
+    
     private val resetBlockReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == "com.example.detach.RESET_APP_BLOCK") {
@@ -47,9 +59,69 @@ class AppLaunchInterceptor : Service() {
                     currentlyPausedApp = null
 
                 }
+            } else if (intent?.action == "com.example.detach.START_APP_SESSION") {
+                val packageName = intent.getStringExtra("package_name")
+                val durationSeconds = intent.getIntExtra("duration_seconds", 0)
+                if (packageName != null && durationSeconds > 0) {
+                    // Start tracking this app session
+                    startAppSession(packageName, durationSeconds)
+                }
             }
         }
     }
+    
+    private fun startAppSession(packageName: String, durationSeconds: Int) {
+        // Save session data in shared preferences for persistence across app restarts
+        val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+        val startTime = System.currentTimeMillis()
+        
+        // Save in memory
+        appSessions[packageName] = AppSession(startTime, durationSeconds)
+        
+        // Save in shared preferences for persistence
+        prefs.edit()
+            .putLong("${APP_SESSION_PREFIX}${packageName}_start", startTime)
+            .putInt("${APP_SESSION_PREFIX}${packageName}_duration", durationSeconds)
+            .apply()
+        
+        Log.d(TAG, "Started app session for $packageName, duration: $durationSeconds seconds")
+    }
+    
+    private fun checkAndHandleEarlyAppClose(packageName: String) {
+        // Check if this app has an active session
+        val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+        val startTime = prefs.getLong("${APP_SESSION_PREFIX}${packageName}_start", 0)
+        
+        if (startTime > 0) {
+            val durationSeconds = prefs.getInt("${APP_SESSION_PREFIX}${packageName}_duration", 0)
+            val currentTime = System.currentTimeMillis()
+            val elapsedSeconds = (currentTime - startTime) / 1000
+            
+            Log.d(TAG, "App $packageName closed. Elapsed time: $elapsedSeconds seconds, Total duration: $durationSeconds seconds")
+            
+            // If app was closed before timer finished
+            if (elapsedSeconds < durationSeconds) {
+                Log.d(TAG, "App $packageName closed early! Re-blocking app.")
+                
+                // Add back to blocked apps
+                val blockedApps = prefs.getStringSet("blocked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+                if (!blockedApps.contains(packageName)) {
+                    blockedApps.add(packageName)
+                    prefs.edit().putStringSet("blocked_apps", blockedApps).apply()
+                }
+            }
+            
+            // Clear the session data
+            prefs.edit()
+                .remove("${APP_SESSION_PREFIX}${packageName}_start")
+                .remove("${APP_SESSION_PREFIX}${packageName}_duration")
+                .apply()
+            
+            // Also remove from memory
+            appSessions.remove(packageName)
+        }
+    }
+    
     override fun onCreate() {
         super.onCreate()
 
@@ -60,10 +132,12 @@ class AppLaunchInterceptor : Service() {
             addAction("com.example.detach.RESET_APP_BLOCK")
             addAction("com.example.detach.PERMANENTLY_BLOCK_APP")
             addAction("com.example.detach.RESET_PAUSE_FLAG")
+            addAction("com.example.detach.START_APP_SESSION")
         }
         registerReceiver(resetBlockReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         startMonitoring()
     }
+    
     private fun startMonitoring() {
 
         Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate({
@@ -74,6 +148,7 @@ class AppLaunchInterceptor : Service() {
             }
         }, 0, 10, TimeUnit.MILLISECONDS)
     }
+    
     private fun monitorAppUsage() {
         val currentTime = System.currentTimeMillis()
         val events = usageStatsManager.queryEvents(lastEventTime, currentTime)
@@ -101,6 +176,7 @@ class AppLaunchInterceptor : Service() {
         }
         lastEventTime = currentTime
     }
+    
     private fun handleAppLaunch(packageName: String) {
 
         // Check cooldown first
@@ -146,6 +222,7 @@ class AppLaunchInterceptor : Service() {
             }
         }
     }
+    
     private fun handleAppBackgrounded(packageName: String) {
         // If the app was temporarily unblocked, re-block it immediately
         if (unblockedApps.containsKey(packageName)) {
@@ -158,11 +235,16 @@ class AppLaunchInterceptor : Service() {
             blockedApps.add(packageName)
             prefs.edit().putStringSet("blocked_apps", blockedApps).apply()
         }
+        
+        // Check if this app has an active session and was closed early
+        checkAndHandleEarlyAppClose(packageName)
     }
+    
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
 
         return START_STICKY
     }
+    
     override fun onDestroy() {
         super.onDestroy()
 
@@ -173,5 +255,6 @@ class AppLaunchInterceptor : Service() {
         }
         currentlyPausedApp = null
     }
+    
     override fun onBind(intent: Intent?): IBinder? = null
 }

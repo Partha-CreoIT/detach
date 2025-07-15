@@ -49,13 +49,15 @@ class DefaultFirebaseOptions {
     storageBucket: 'detach-creo.firebasestorage.app',
     measurementId: 'G-7QW1EMGJCC',
   );
+
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCwfx-5FZuUk31IW4NzV5Bh7Xb6Q8nRsuc',
-    appId: '1:143537014188:android:74e6e858b714ea9dea2609',
+    appId: '1:143537014188:android:3ba4549a7a93d4bcea2609',
     messagingSenderId: '143537014188',
     projectId: 'detach-creo',
     storageBucket: 'detach-creo.firebasestorage.app',
   );
+
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyCIAg4FqZ2q5XzcYXwJIbFEiYb6c2sgveM',
     appId: '1:143537014188:ios:c721daa8e4c41ad9ea2609',
@@ -64,6 +66,7 @@ class DefaultFirebaseOptions {
     storageBucket: 'detach-creo.firebasestorage.app',
     iosBundleId: 'com.example.detach',
   );
+
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyCIAg4FqZ2q5XzcYXwJIbFEiYb6c2sgveM',
     appId: '1:143537014188:ios:c721daa8e4c41ad9ea2609',
@@ -72,6 +75,7 @@ class DefaultFirebaseOptions {
     storageBucket: 'detach-creo.firebasestorage.app',
     iosBundleId: 'com.example.detach',
   );
+
   static const FirebaseOptions windows = FirebaseOptions(
     apiKey: 'AIzaSyD2bgKMZjYxNaBy8EkQoJ2cKWas80TI18Y',
     appId: '1:143537014188:web:f3eeffae46b6aef9ea2609',

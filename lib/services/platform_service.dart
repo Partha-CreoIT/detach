@@ -36,6 +36,17 @@ class PlatformService {
     } catch (e) {}
   }
 
+  /// Start tracking an app session with a timer
+  static Future<void> startAppSession(
+      String packageName, int durationSeconds) async {
+    try {
+      await _channel.invokeMethod('startAppSession', {
+        'packageName': packageName,
+        'durationSeconds': durationSeconds,
+      });
+    } catch (e) {}
+  }
+
   static Future<void> launchApp(String packageName) async {
     try {
       await _channel.invokeMethod('launchApp', {'packageName': packageName});

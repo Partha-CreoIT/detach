@@ -45,35 +45,6 @@ class PermissionBatteryView extends GetView<PermissionController> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              // Instructions
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      '📋 Instructions:',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue,
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      '1. Tap the button below\n'
-                      '2. Tap "Allow" on the popup dialog\n'
-                      '3. The app will continue automatically',
-                      style: TextStyle(fontSize: 14, color: Colors.blue),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 24),

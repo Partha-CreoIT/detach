@@ -33,6 +33,65 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     return "$minutes:$seconds";
   }
 
+  // Add these new variables to track app usage
+  DateTime? _appStartTime;
+  String? _currentSessionKey;
+
+  // Save the session start time and details
+  Future<void> _saveSessionStart(
+      String packageName, int durationMinutes) async {
+    final prefs = await SharedPreferences.getInstance();
+    _appStartTime = DateTime.now();
+    _currentSessionKey = 'app_session_$packageName';
+
+    // Save session details
+    await prefs.setString(
+        _currentSessionKey!, _appStartTime!.toIso8601String());
+    await prefs.setInt('${_currentSessionKey!}_duration', durationMinutes * 60);
+  }
+
+  // Check if an app was closed early and handle accordingly
+  Future<void> checkEarlyClose(String packageName) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final sessionKey = 'app_session_$packageName';
+
+      // Check if we have a saved session
+      if (prefs.containsKey(sessionKey)) {
+        final startTimeStr = prefs.getString(sessionKey);
+        final totalDuration = prefs.getInt('${sessionKey}_duration') ?? 0;
+
+        if (startTimeStr != null) {
+          final startTime = DateTime.parse(startTimeStr);
+          final now = DateTime.now();
+          final elapsedSeconds = now.difference(startTime).inSeconds;
+
+          // If the app was closed before the timer finished
+          if (elapsedSeconds < totalDuration) {
+            // Add the app back to blocked list
+            final blockedApps =
+                prefs.getStringList("blocked_apps")?.toList() ?? [];
+            if (!blockedApps.contains(packageName)) {
+              blockedApps.add(packageName);
+              await prefs.setStringList("blocked_apps", blockedApps);
+
+              // Update the blocker service with new list
+              try {
+                await PlatformService.startBlockerService(blockedApps);
+              } catch (e) {}
+            }
+          }
+
+          // Clear the session data
+          await prefs.remove(sessionKey);
+          await prefs.remove('${sessionKey}_duration');
+        }
+      }
+    } catch (e) {
+      // Handle errors
+    }
+  }
+
   void startCountdown() async {
     try {
       showCountdown.value = true;
@@ -63,6 +122,11 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
         try {
           await PlatformService.startBlockerService(blockedApps);
         } catch (e) {}
+
+        // Start tracking this app session in the native layer
+        await PlatformService.startAppSession(
+            lockedPackageName!, selectedMinutes.value * 60);
+
         // Launch the app
         await Future.delayed(const Duration(milliseconds: 500));
 
@@ -105,8 +169,14 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
             await PlatformService.startBlockerService(blockedApps);
           } catch (e) {}
         }
-        // Close both apps and return to pause view
 
+        // Clear the session data since time is up
+        if (_currentSessionKey != null) {
+          await prefs.remove(_currentSessionKey!);
+          await prefs.remove('${_currentSessionKey!}_duration');
+        }
+
+        // Close both apps and return to pause view
         await PlatformService.closeBothApps();
         // Reset states
         showTimer.value = false;
@@ -162,6 +232,12 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
       Get.offAllNamed(AppRoutes.home);
       return;
     }
+
+    // Check if this app was closed early in a previous session
+    if (lockedPackageName != null) {
+      checkEarlyClose(lockedPackageName!);
+    }
+
     AnalyticsService.to.logScreenView('pause_page');
     AnalyticsService.to.logAppBlocked(lockedPackageName!);
     waterController = AnimationController(

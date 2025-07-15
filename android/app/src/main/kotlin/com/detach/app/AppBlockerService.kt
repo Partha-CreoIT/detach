@@ -121,6 +121,12 @@ class AppBlockerService : Service() {
         }
     }
 
+    private fun handleAppBackgrounded(packageName: String) {
+        // Handle when an app moves to background
+        // Currently just logging, but can be extended with additional functionality
+        // For example, updating app usage statistics or resetting timers
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
 
         return START_STICKY // Restart service if killed

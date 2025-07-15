@@ -14,22 +14,74 @@ class PermissionOverlayView extends GetView<PermissionController> {
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
+            children: [
+              // Icon
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.layers,
+                    size: 48,
+                    color: Colors.purple,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
                 'Overlay Permission',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
-              SizedBox(height: 16),
-              Text(
+              const SizedBox(height: 16),
+              const Text(
                 'Detach needs permission to draw over other apps in order to display a blocking screen '
                 'when you open a restricted app. Please enable this in settings.',
                 style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              // Instructions
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.purple.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border:
+                      Border.all(color: Colors.purple.withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      '📋 Instructions:',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.purple,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      '1. Tap the button below\n'
+                      '2. Toggle "Allow display over other apps"\n'
+                      '3. Return to the app',
+                      style: TextStyle(fontSize: 14, color: Colors.purple),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.layers),
+              label: const Text(
+                'Grant Overlay Permission',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
               onPressed: () async {
                 await controller.openOverlaySettings();
                 // Reset permission check so it will re-check when user returns
@@ -42,7 +94,6 @@ class PermissionOverlayView extends GetView<PermissionController> {
                   ),
                 ),
               ),
-              child: const Text('Grant overlay permission'),
             ),
           ),
         ],

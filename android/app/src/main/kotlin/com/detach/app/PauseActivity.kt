@@ -78,6 +78,17 @@ class PauseActivity : FlutterActivity() {
                         result.error("INVALID_ARG", "Package name is null.", null)
                     }
                 }
+                "startAppSession" -> {
+                    val packageName = call.argument<String>("packageName")
+                    val durationSeconds = call.argument<Int>("durationSeconds") ?: 0
+
+                    if (packageName != null && durationSeconds > 0) {
+                        startAppSession(packageName, durationSeconds)
+                        result.success(null)
+                    } else {
+                        result.error("INVALID_ARG", "Invalid package name or duration", null)
+                    }
+                }
                 "startBlockerService" -> {
                     val apps = call.argument<List<String>>("blockedApps")
 
@@ -126,6 +137,17 @@ class PauseActivity : FlutterActivity() {
             }
         }
     }
+    
+    private fun startAppSession(packageName: String, durationSeconds: Int) {
+        // Send broadcast to AppLaunchInterceptor to start tracking this app session
+        val intent = Intent("com.example.detach.START_APP_SESSION")
+        intent.putExtra("package_name", packageName)
+        intent.putExtra("duration_seconds", durationSeconds)
+        sendBroadcast(intent)
+        
+        Log.d(TAG, "Started app session for $packageName with duration $durationSeconds seconds")
+    }
+    
     override fun getInitialRoute(): String {
         val packageName = intent.getStringExtra("blocked_app_package")
         val route = if (packageName != null) "/pause?package=$packageName" else "/pause"
