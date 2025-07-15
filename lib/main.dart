@@ -7,6 +7,7 @@ import 'package:detach/firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Set preferred orientations to portrait only
@@ -23,6 +24,7 @@ void main() async {
   // No need to set it statically here
   runApp(const DetachApp());
 }
+
 class DetachApp extends StatelessWidget {
   const DetachApp({super.key});
   @override

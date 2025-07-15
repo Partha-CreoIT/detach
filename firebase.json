@@ -1,1 +1,37 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"detach-creo","appId":"1:143537014188:android:74e6e858b714ea9dea2609","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"detach-creo","appId":"1:143537014188:ios:c721daa8e4c41ad9ea2609","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"macos":{"default":{"projectId":"detach-creo","appId":"1:143537014188:ios:c721daa8e4c41ad9ea2609","uploadDebugSymbols":false,"fileOutput":"macos/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"detach-creo","configurations":{"android":"1:143537014188:android:74e6e858b714ea9dea2609"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "detach-creo",
+          "appId": "1:143537014188:android:74e6e858b714ea9dea2609",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "detach-creo",
+          "appId": "1:143537014188:ios:c721daa8e4c41ad9ea2609",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "macos": {
+        "default": {
+          "projectId": "detach-creo",
+          "appId": "1:143537014188:ios:c721daa8e4c41ad9ea2609",
+          "uploadDebugSymbols": false,
+          "fileOutput": "macos/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "detach-creo",
+          "configurations": {
+            "android": "1:143537014188:android:74e6e858b714ea9dea2609"
+          }
+        }
+      }
+    }
+  }
+}

@@ -3,11 +3,13 @@ import 'package:get/get.dart';
 import 'package:detach/services/analytics_service.dart';
 import 'package:detach/services/permission_service.dart';
 import 'package:detach/app/routes/app_routes.dart';
+
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
   @override
   State<SplashPage> createState() => _SplashPageState();
 }
+
 class _SplashPageState extends State<SplashPage>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
@@ -33,6 +35,7 @@ class _SplashPageState extends State<SplashPage>
       _navigateToProfile();
     });
   }
+
   void _navigateToProfile() async {
     // Log app launch
     await AnalyticsService.to.logAppLaunch();
@@ -40,43 +43,41 @@ class _SplashPageState extends State<SplashPage>
     // Check permissions and navigate accordingly
     await _checkPermissionsAndNavigate();
   }
+
   Future<void> _checkPermissionsAndNavigate() async {
-    
     // Don't redirect if we're already on the pause page
     if (Get.currentRoute.startsWith(AppRoutes.pause)) {
-       
       return;
     }
     final permissionService = PermissionService();
     // Add delays to ensure proper permission checking
     await Future.delayed(const Duration(milliseconds: 500));
     final hasUsage = await permissionService.hasUsagePermission();
-    
+
     final hasOverlay = await permissionService.hasOverlayPermission();
-    
+
     final hasBattery = await permissionService.hasBatteryOptimizationIgnored();
-    
-     
+
     // Log permission status
     if (hasUsage) await AnalyticsService.to.logPermissionGranted('usage_stats');
     if (hasOverlay) await AnalyticsService.to.logPermissionGranted('overlay');
     if (hasBattery)
       await AnalyticsService.to.logPermissionGranted('battery_optimization');
     if (hasUsage && hasOverlay && hasBattery) {
-      
       await AnalyticsService.to.logFeatureUsage('all_permissions_granted');
-      Get.offAllNamed('${AppRoutes.home}?tab=0'); // tab=0 for overview page
+      Get.offAllNamed(AppRoutes.home); // Remove the tab parameter
     } else {
-       
       await AnalyticsService.to.logFeatureUsage('permissions_required');
       Get.offAllNamed(AppRoutes.permission);
     }
   }
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../controllers/pause_controller.dart';
 import 'dart:math';
 import 'package:flutter/services.dart';
+
 class TimerView extends GetView<PauseController> {
   const TimerView({super.key});
   @override
@@ -179,6 +180,7 @@ class TimerView extends GetView<PauseController> {
     );
   }
 }
+
 class ModernTimeSlider extends StatefulWidget {
   final int value;
   final ValueChanged<int> onChanged;
@@ -190,6 +192,7 @@ class ModernTimeSlider extends StatefulWidget {
   @override
   State<ModernTimeSlider> createState() => _ModernTimeSliderState();
 }
+
 class _ModernTimeSliderState extends State<ModernTimeSlider>
     with TickerProviderStateMixin {
   late int _value;
@@ -209,6 +212,7 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
     _pulseController.repeat(reverse: true);
     super.initState();
   }
+
   @override
   void didUpdateWidget(covariant ModernTimeSlider oldWidget) {
     if (widget.value != oldWidget.value) {
@@ -218,11 +222,13 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
     }
     super.didUpdateWidget(oldWidget);
   }
+
   @override
   void dispose() {
     _pulseController.dispose();
     super.dispose();
   }
+
   void _updatePosition(Offset localPos) {
     final box = _sliderKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return;
@@ -244,6 +250,7 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
       }
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -334,6 +341,7 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
     );
   }
 }
+
 class _ModernTrackPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -352,9 +360,11 @@ class _ModernTrackPainter extends CustomPainter {
       trackPaint,
     );
   }
+
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
 class _ModernProgressPainter extends CustomPainter {
   final double progress;
   _ModernProgressPainter(this.progress);
@@ -380,9 +390,11 @@ class _ModernProgressPainter extends CustomPainter {
       progressPaint,
     );
   }
+
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
+
 class _ModernHandlePainter extends CustomPainter {
   final double progress;
   _ModernHandlePainter(this.progress);
@@ -417,6 +429,7 @@ class _ModernHandlePainter extends CustomPainter {
       highlightPaint,
     );
   }
+
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

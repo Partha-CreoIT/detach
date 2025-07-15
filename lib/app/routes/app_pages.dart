@@ -8,6 +8,7 @@ import '../pages/home/view/home_view.dart';
 import '../pages/pause/bindings/pause_binding.dart';
 import '../pages/pause/views/pause_view.dart';
 import 'app_routes.dart';
+
 class PauseMiddleware extends GetMiddleware {
   @override
   RouteSettings? redirect(String? route) {
@@ -21,11 +22,13 @@ class PauseMiddleware extends GetMiddleware {
     // For now, just allow all other routes
     return null;
   }
+
   @override
   GetPage? onPageCalled(GetPage? page) {
     return page;
   }
 }
+
 class AppPages {
   static final pages = [
     GetPage(name: AppRoutes.splash, page: () => const SplashPage()),

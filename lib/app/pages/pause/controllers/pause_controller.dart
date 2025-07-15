@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:detach/app/routes/app_routes.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 class PauseController extends GetxController with GetTickerProviderStateMixin {
   late AnimationController waterController;
   late Animation<double> waterAnimation;
@@ -31,9 +32,9 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     final seconds = (remaining % 60).toString().padLeft(2, '0');
     return "$minutes:$seconds";
   }
+
   void startCountdown() async {
     try {
-      
       showCountdown.value = true;
       countdownSeconds.value = selectedMinutes.value * 60;
       elapsedSeconds.value = 0;
@@ -44,39 +45,27 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
       if (lockedPackageName != null) {
         try {
           await PlatformService.resetPauseFlag(lockedPackageName!);
-          
-        } catch (e) {
-          
-        }
+        } catch (e) {}
       }
       // First remove the app from blocked list temporarily
       if (lockedPackageName != null) {
-        
         final prefs = await SharedPreferences.getInstance();
         final blockedApps = prefs.getStringList("blocked_apps")?.toList() ?? [];
-        
+
         blockedApps.remove(lockedPackageName);
         await prefs.setStringList("blocked_apps", blockedApps);
-        
+
         // First reset the app block to prevent immediate re-blocking
         try {
-          
           await PlatformService.resetAppBlock(lockedPackageName!);
-          
-        } catch (e) {
-          
-        }
+        } catch (e) {}
         // Update the blocker service with new list
         try {
-          
           await PlatformService.startBlockerService(blockedApps);
-          
-        } catch (e) {
-          
-        }
+        } catch (e) {}
         // Launch the app
         await Future.delayed(const Duration(milliseconds: 500));
-        
+
         await PlatformService.launchApp(lockedPackageName!);
         // Close the pause screen
         Get.back();
@@ -89,7 +78,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
         }
         if (elapsedSeconds.value >= countdownSeconds.value) {
           timer?.cancel();
-          
+
           _handleTimeUp();
         }
         progressController.value =
@@ -97,35 +86,27 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
       });
       // Log analytics
       await AnalyticsService.to.logPauseSession(selectedMinutes.value);
-      
-    } catch (e, stackTrace) {
-      
-      
-    }
+    } catch (e, stackTrace) {}
   }
+
   void _handleTimeUp() async {
     try {
-      
       if (lockedPackageName != null) {
         // Add the app back to blocked list
         final prefs = await SharedPreferences.getInstance();
         final blockedApps = prefs.getStringList("blocked_apps")?.toList() ?? [];
-        
+
         if (!blockedApps.contains(lockedPackageName)) {
           blockedApps.add(lockedPackageName!);
           await prefs.setStringList("blocked_apps", blockedApps);
-          
+
           // Update the blocker service with new list
           try {
-            
             await PlatformService.startBlockerService(blockedApps);
-            
-          } catch (e) {
-            
-          }
+          } catch (e) {}
         }
         // Close both apps and return to pause view
-        
+
         await PlatformService.closeBothApps();
         // Reset states
         showTimer.value = false;
@@ -137,13 +118,10 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
         );
         // Log analytics
         AnalyticsService.to.logPauseSessionCompleted(countdownSeconds.value);
-        
       }
-    } catch (e, stackTrace) {
-      
-      
-    }
+    } catch (e, stackTrace) {}
   }
+
   void openApp() async {
     // This is now handled in startCountdown
   }
@@ -154,21 +132,20 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
       // Reset the pause flag since the user is taking action
       try {
         await PlatformService.resetPauseFlag(lockedPackageName!);
-        
-      } catch (e) {
-        
-      }
+      } catch (e) {}
     }
     await MethodChannel(
       'com.detach.app/permissions',
     ).invokeMethod('goToHomeAndFinish');
   }
+
   void continueApp() async {
     AnalyticsService.to.logPauseSessionInterrupted();
     showTimer.value = true;
     elapsedSeconds.value = 0;
     progressController.value = 0;
   }
+
   RxInt start = 60.obs;
   RxInt attemptsToday = 0.obs;
   String? lockedPackageName;
@@ -182,7 +159,6 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     lockedPackageName = Get.parameters['package'];
     // If no package name is provided, this is not a valid pause session
     if (lockedPackageName == null) {
-       
       Get.offAllNamed(AppRoutes.home);
       return;
     }
@@ -214,6 +190,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
       });
     _initializeAppData();
   }
+
   Future<void> _initializeAppData() async {
     if (lockedPackageName != null) {
       try {
@@ -230,6 +207,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
       }
     }
   }
+
   void startTimer() {
     timerStarted.value = true;
     AnalyticsService.to.logPauseSession(start.value);
@@ -248,6 +226,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
       }
     });
   }
+
   @override
   void onClose() {
     waterController.dispose();

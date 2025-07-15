@@ -1,11 +1,279 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controller/home_controller.dart';
-import 'widgets/overview_page.dart';
+import 'package:installed_apps/app_info.dart';
+import 'package:detach/services/theme_service.dart';
+
 class HomeView extends GetView<HomeController> {
   const HomeView({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: OverviewPage());
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Overview',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 28),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          PopupMenuButton<ThemeMode>(
+            icon: Obx(() {
+              final themeService = Get.find<ThemeService>();
+              IconData iconData;
+              switch (themeService.themeMode.value) {
+                case ThemeMode.light:
+                  iconData = Icons.light_mode;
+                  break;
+                case ThemeMode.dark:
+                  iconData = Icons.dark_mode;
+                  break;
+                case ThemeMode.system:
+                  iconData = Icons.brightness_auto;
+                  break;
+              }
+              return Icon(iconData);
+            }),
+            onSelected: (ThemeMode mode) {
+              final themeService = Get.find<ThemeService>();
+              themeService.setThemeMode(mode);
+              // Force status bar update
+              themeService.updateStatusBarStyle();
+            },
+            itemBuilder: (BuildContext context) => [
+              PopupMenuItem<ThemeMode>(
+                value: ThemeMode.light,
+                child: Row(
+                  children: [
+                    const Icon(Icons.light_mode, color: Colors.orange),
+                    const SizedBox(width: 8),
+                    const Text('Light'),
+                    const Spacer(),
+                    Obx(() {
+                      final themeService = Get.find<ThemeService>();
+                      return themeService.themeMode.value == ThemeMode.light
+                          ? const Icon(Icons.check, color: Colors.green)
+                          : const SizedBox.shrink();
+                    }),
+                  ],
+                ),
+              ),
+              PopupMenuItem<ThemeMode>(
+                value: ThemeMode.dark,
+                child: Row(
+                  children: [
+                    const Icon(Icons.dark_mode, color: Colors.indigo),
+                    const SizedBox(width: 8),
+                    const Text('Dark'),
+                    const Spacer(),
+                    Obx(() {
+                      final themeService = Get.find<ThemeService>();
+                      return themeService.themeMode.value == ThemeMode.dark
+                          ? const Icon(Icons.check, color: Colors.green)
+                          : const SizedBox.shrink();
+                    }),
+                  ],
+                ),
+              ),
+              PopupMenuItem<ThemeMode>(
+                value: ThemeMode.system,
+                child: Row(
+                  children: [
+                    const Icon(Icons.brightness_auto, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    const Text('System'),
+                    const Spacer(),
+                    Obx(() {
+                      final themeService = Get.find<ThemeService>();
+                      return themeService.themeMode.value == ThemeMode.system
+                          ? const Icon(Icons.check, color: Colors.green)
+                          : const SizedBox.shrink();
+                    }),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: Obx(() {
+        if (controller.isLoading.value) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        return Column(
+          children: [
+            _buildSearchBar(context),
+            Expanded(
+              child: CustomScrollView(
+                slivers: [
+                  // Selected Apps Section - Hide during search
+                  if (controller.selectedApps.isNotEmpty &&
+                      !controller.isSearching) ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              'Selected Apps (${controller.selectedApps.length})',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                            const Spacer(),
+                            TextButton(
+                              onPressed: controller.clearAllSelected,
+                              child: const Text('Clear All'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => _buildAppTile(
+                          context,
+                          controller.selectedApps[index],
+                        ),
+                        childCount: controller.selectedApps.length,
+                      ),
+                    ),
+                    const SliverToBoxAdapter(child: Divider(height: 32)),
+                  ],
+                  // All Apps Section
+                  if (!controller.isSearching) ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: Text(
+                          'All Apps',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                  // Search Results or All Apps
+                  if (controller.filteredApps.isNotEmpty) ...[
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => _buildAppTile(
+                          context,
+                          controller.filteredApps[index],
+                        ),
+                        childCount: controller.filteredApps.length,
+                      ),
+                    ),
+                  ] else if (controller.isSearching) ...[
+                    // No search results
+                    SliverFillRemaining(
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.search_off,
+                              size: 64,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No apps available for your search',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w500,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Try searching with different keywords',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
+  Widget _buildSearchBar(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: TextField(
+        onChanged: controller.filterApps,
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+        decoration: InputDecoration(
+          hintText: 'Search apps...',
+          hintStyle: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30.0),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.surfaceVariant,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppTile(BuildContext context, AppInfo app) {
+    return Obx(() {
+      final isSelected = controller.selectedAppPackages.contains(
+        app.packageName,
+      );
+      return ListTile(
+        leading: app.icon != null
+            ? Image.memory(app.icon!, width: 40, height: 40)
+            : const Icon(Icons.apps, size: 40),
+        title: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          child: Text(app.name),
+        ),
+        trailing: Switch(
+          value: isSelected,
+          onChanged: (_) {
+            controller.toggleAppSelection(app);
+            controller.saveApps();
+          },
+        ),
+        onTap: () {
+          controller.toggleAppSelection(app);
+          controller.saveApps();
+        },
+      );
+    });
   }
 }

@@ -7,6 +7,7 @@ import 'package:detach/services/permission_service.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:detach/app/routes/app_routes.dart';
+
 class HomeController extends GetxController {
   final RxInt limitedAppsCount = 0.obs;
   final PermissionService _permissionService = PermissionService();
@@ -23,11 +24,13 @@ class HomeController extends GetxController {
     _logScreenView();
     _startBlockerServiceIfNeeded();
   }
+
   Future<void> _loadLimitedAppsCount() async {
     final prefs = await SharedPreferences.getInstance();
     final blockedApps = prefs.getStringList("blocked_apps");
     limitedAppsCount.value = blockedApps?.length ?? 0;
   }
+
   Future<void> _loadBlockedAppsAndApps() async {
     // Load previously blocked apps from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
@@ -35,15 +38,18 @@ class HomeController extends GetxController {
     selectedAppPackages.assignAll(blockedApps);
     await _loadApps();
   }
+
   Future<void> _startBlockerServiceIfNeeded() async {
     // Start the blocker service if there are blocked apps
     if (selectedAppPackages.isNotEmpty) {
       await PlatformService.startBlockerService(selectedAppPackages.toList());
     }
   }
+
   Future<void> _logScreenView() async {
     await AnalyticsService.to.logScreenView('home_page');
   }
+
   Future<void> _loadApps() async {
     try {
       isLoading.value = true;
@@ -52,10 +58,9 @@ class HomeController extends GetxController {
         true,
       );
       // Filter out the current app (Detach) from the list
-      installedApps =
-          installedApps
-              .where((app) => app.packageName != 'com.example.detach')
-              .toList();
+      installedApps = installedApps
+          .where((app) => app.packageName != 'com.detach.app')
+          .toList();
       installedApps.sort(
         (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
       );
@@ -65,20 +70,20 @@ class HomeController extends GetxController {
       isLoading.value = false;
     }
   }
+
   void toggleAppSelection(AppInfo app) async {
     // If user is trying to add an app (lock it), check permissions first
     if (!selectedAppPackages.contains(app.packageName)) {
-      
       // Check if user has bypassed permissions
       final hasBypassed = await _checkAllPermissions();
-      
+
       if (!hasBypassed) {
         // Check if all permissions are granted
         final hasAllPermissions = await _checkAllPermissions();
-        
+
         if (!hasAllPermissions) {
           // Show permission bottom sheet and don't lock the app
-          
+
           _showPermissionBottomSheet();
           return;
         }
@@ -99,6 +104,7 @@ class HomeController extends GetxController {
     // Save to SharedPreferences and update the service
     await saveApps();
   }
+
   Future<void> _performAppBlocking(AppInfo app) async {
     selectedAppPackages.add(app.packageName);
     AnalyticsService.to.logAppBlocked(app.name);
@@ -111,16 +117,15 @@ class HomeController extends GetxController {
     selectedAppPackages.refresh();
     allApps.refresh();
   }
+
   Future<bool> _checkAllPermissions() async {
     final hasUsage = await _permissionService.hasUsagePermission();
     final hasOverlay = await _permissionService.hasOverlayPermission();
     final hasBattery = await _permissionService.hasBatteryOptimizationIgnored();
-    
-    
-    
-    
+
     return hasUsage && hasOverlay && hasBattery;
   }
+
   void _showPermissionBottomSheet() {
     Get.bottomSheet(
       Container(
@@ -218,6 +223,7 @@ class HomeController extends GetxController {
       enableDrag: true,
     );
   }
+
   void filterApps(String query) {
     searchQuery.value = query;
     if (query.isEmpty) {
@@ -230,10 +236,12 @@ class HomeController extends GetxController {
       );
     }
   }
+
   // Check if user is searching
   bool get isSearching {
     return searchQuery.isNotEmpty;
   }
+
   // Search query
   final RxString searchQuery = ''.obs;
   void clearAllSelected() async {
@@ -243,6 +251,7 @@ class HomeController extends GetxController {
     // Stop the blocker service since no apps are blocked
     await PlatformService.startBlockerService([]);
   }
+
   Future<void> saveApps() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList("blocked_apps", selectedAppPackages.toList());
@@ -257,6 +266,7 @@ class HomeController extends GetxController {
       parameters: {'count': selectedAppPackages.length},
     );
   }
+
   // Computed getters for the UI
   List<AppInfo> get selectedApps {
     return allApps

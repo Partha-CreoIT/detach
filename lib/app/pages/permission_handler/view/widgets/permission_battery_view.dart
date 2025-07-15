@@ -2,6 +2,7 @@ import 'package:figma_squircle/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:detach/app/pages/permission_handler/controller/permission_controller.dart';
+
 class PermissionBatteryView extends GetView<PermissionController> {
   const PermissionBatteryView({super.key});
   @override
@@ -66,8 +67,8 @@ class PermissionBatteryView extends GetView<PermissionController> {
                     SizedBox(height: 8),
                     Text(
                       '1. Tap the button below\n'
-                      '2. Select "Don\'t optimize" for Detach\n'
-                      '3. Return to the app',
+                      '2. Tap "Allow" on the popup dialog\n'
+                      '3. The app will continue automatically',
                       style: TextStyle(fontSize: 14, color: Colors.blue),
                     ),
                   ],
@@ -80,9 +81,9 @@ class PermissionBatteryView extends GetView<PermissionController> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              icon: const Icon(Icons.settings),
+              icon: const Icon(Icons.battery_charging_full),
               label: const Text(
-                'Open Battery Settings',
+                'Disable Battery Optimization',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               onPressed: () async {

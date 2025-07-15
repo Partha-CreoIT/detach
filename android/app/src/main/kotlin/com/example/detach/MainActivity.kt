@@ -1,4 +1,4 @@
-package com.example.detach
+package com.detach.app
 import android.app.AppOpsManager
 import android.content.Context
 import android.content.Intent
@@ -14,11 +14,11 @@ class MainActivity : FlutterActivity() {
     private val TAG = "MainActivity"
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
     }
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        
+
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             CHANNEL
@@ -26,17 +26,17 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "checkUsagePermission" -> {
                     val hasPermission = hasUsageAccess()
-                    
+
                     result.success(hasPermission)
                 }
                 "checkOverlayPermission" -> {
                     val hasPermission = Settings.canDrawOverlays(this)
-                    
+
                     result.success(hasPermission)
                 }
                 "checkBatteryOptimization" -> {
                     val hasPermission = isIgnoringBatteryOptimizations()
-                    
+
                     result.success(hasPermission)
                 }
                 "openUsageSettings" -> {
@@ -53,41 +53,41 @@ class MainActivity : FlutterActivity() {
                 }
                 "startBlockerService" -> {
                     val apps = call.argument<List<String>>("blockedApps")
-                    
+
                     if (apps != null) {
                         val prefs =
                             getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
                         prefs.edit().putStringSet("blocked_apps", apps.toSet()).apply()
-                        
+
                         // Verify the save worked
                         val savedApps = prefs.getStringSet("blocked_apps", null)
-                        
+
                         // Start the AppLaunchInterceptor service
                         val interceptorIntent = Intent(this, AppLaunchInterceptor::class.java)
                         startService(interceptorIntent)
-                        
+
                         // Also check if service is running
                         val am =
                             getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
                         val runningServices = am.getRunningServices(Integer.MAX_VALUE)
                         val isServiceRunning =
                             runningServices.any { it.service.className == "com.example.detach.AppLaunchInterceptor" }
-                        
+
                     } else {
-                        
+
                     }
                     result.success(null)
                 }
                 "launchApp" -> {
                     val packageName = call.argument<String>("packageName")
-                    
+
                     if (packageName != null) {
                         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
                         if (launchIntent != null) {
                             startActivity(launchIntent)
                             result.success(true)
                         } else {
-                            
+
                             result.error("UNAVAILABLE", "Could not launch app.", null)
                         }
                     } else {
@@ -95,13 +95,13 @@ class MainActivity : FlutterActivity() {
                     }
                 }
                 "closeBothApps" -> {
-                    
+
                     closeBothApps()
                     result.success(null)
                 }
                 "resetAppBlock" -> {
                     val packageName = call.argument<String>("packageName")
-                    
+
                     if (packageName != null) {
                         resetAppBlock(packageName)
                     }
@@ -109,7 +109,7 @@ class MainActivity : FlutterActivity() {
                 }
                 "permanentlyBlockApp" -> {
                     val packageName = call.argument<String>("packageName")
-                    
+
                     if (packageName != null) {
                         permanentlyBlockApp(packageName)
                     }
@@ -121,7 +121,7 @@ class MainActivity : FlutterActivity() {
                     val runningServices = am.getRunningServices(Integer.MAX_VALUE)
                     val isRunning =
                         runningServices.any { it.service.className == "com.example.detach.AppLaunchInterceptor" }
-                    
+
                     result.success(isRunning)
                 }
                 "getBlockedApps" -> {
@@ -129,7 +129,7 @@ class MainActivity : FlutterActivity() {
                         getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
                     val blockedApps = prefs.getStringSet("blocked_apps", null)
                     val appsList = blockedApps?.toList() ?: emptyList()
-                    
+
                     result.success(appsList)
                 }
                 "closeApp" -> {
@@ -146,7 +146,7 @@ class MainActivity : FlutterActivity() {
     override fun getInitialRoute(): String {
         val showLock = intent.getBooleanExtra("show_lock", false)
         val lockedPackage = intent.getStringExtra("locked_package")
-        
+
         return if (showLock && lockedPackage != null) {
             "/pause?package=$lockedPackage"
         } else {
@@ -178,13 +178,22 @@ class MainActivity : FlutterActivity() {
         startActivity(intent)
     }
     private fun openBatteryOptimizationSettings() {
-        val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        startActivity(intent)
+        // Request direct battery optimization exception
+        try {
+            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+            intent.data = android.net.Uri.parse("package:$packageName")
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            startActivity(intent)
+        } catch (e: Exception) {
+            // Fallback to settings screen if direct request fails
+            val fallbackIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+            fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            startActivity(fallbackIntent)
+        }
     }
     private fun closeBothApps() {
         try {
-            
+
             // Get the ActivityManager
             val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
             // Get recent tasks to find the blocked app
@@ -195,18 +204,18 @@ class MainActivity : FlutterActivity() {
                 val baseIntent = task.baseIntent
                 val packageName = baseIntent.component?.packageName
                 if (packageName != null && packageName != this.packageName) {
-                    
+
                     // Try multiple methods to force stop the app
                     try {
                         // Method 1: Kill background processes
                         am.killBackgroundProcesses(packageName)
-                        
+
                         // Method 2: Try to force stop using shell command (requires root or system app)
                         try {
                             val process = Runtime.getRuntime()
                                 .exec(arrayOf("su", "-c", "am force-stop $packageName"))
                             process.waitFor()
-                            
+
                         } catch (e: Exception) {
                             Log.d(
                                 TAG,
@@ -219,25 +228,25 @@ class MainActivity : FlutterActivity() {
                             homeIntent.addCategory(Intent.CATEGORY_HOME)
                             homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                             startActivity(homeIntent)
-                            
+
                         } catch (e: Exception) {
-                            
+
                         }
                     } catch (e: Exception) {
-                        
+
                     }
                 }
             }
             // Add a small delay to ensure the blocked app is killed
             Thread.sleep(500)
             // Close the current app (Detach)
-            
+
             finishAndRemoveTask()
             // Force stop completely
             finishAffinity()
             android.os.Process.killProcess(android.os.Process.myPid())
         } catch (e: Exception) {
-            
+
             // Even if there's an error, try to close the current app
             finishAndRemoveTask()
             finishAffinity()
@@ -248,13 +257,13 @@ class MainActivity : FlutterActivity() {
         val intent = Intent("com.example.detach.RESET_APP_BLOCK")
         intent.putExtra("package_name", packageName)
         sendBroadcast(intent)
-        
+
     }
     private fun permanentlyBlockApp(packageName: String) {
         // Send broadcast to AppLaunchInterceptor to permanently block the app
         val intent = Intent("com.example.detach.PERMANENTLY_BLOCK_APP")
         intent.putExtra("package_name", packageName)
         sendBroadcast(intent)
-        
+
     }
 }

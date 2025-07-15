@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:figma_squircle/figma_squircle.dart';
+
 class ThemeService extends GetxController {
   static ThemeService get to => Get.find();
   final RxBool isDarkMode = false.obs;
@@ -46,6 +47,7 @@ class ThemeService extends GetxController {
     super.onInit();
     _loadThemePreference();
   }
+
   Future<void> _loadThemePreference() async {
     final prefs = await SharedPreferences.getInstance();
     final themeModeString = prefs.getString('themeMode') ?? 'system';
@@ -67,6 +69,7 @@ class ThemeService extends GetxController {
     // Update status bar style after loading theme preference
     updateStatusBarStyle();
   }
+
   Future<void> toggleTheme() async {
     isDarkMode.value = !isDarkMode.value;
     themeMode.value = isDarkMode.value ? ThemeMode.dark : ThemeMode.light;
@@ -76,6 +79,7 @@ class ThemeService extends GetxController {
     updateStatusBarStyle();
     Get.changeThemeMode(themeMode.value);
   }
+
   Future<void> setThemeMode(ThemeMode mode) async {
     themeMode.value = mode;
     isDarkMode.value = mode == ThemeMode.dark;
@@ -101,27 +105,24 @@ class ThemeService extends GetxController {
       updateStatusBarStyle();
     });
   }
+
   void updateStatusBarStyle() {
     // Simple approach - just use the isDarkMode value
     final statusBarIconBrightness =
         isDarkMode.value ? Brightness.light : Brightness.dark;
-    
-    
-    
-    
+
     // Force update the status bar style
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: statusBarIconBrightness,
-        statusBarBrightness:
-            statusBarIconBrightness == Brightness.dark
-                ? Brightness.light
-                : Brightness.dark,
+        statusBarBrightness: statusBarIconBrightness == Brightness.dark
+            ? Brightness.light
+            : Brightness.dark,
       ),
     );
-    
   }
+
   // Light Theme
   static ThemeData get lightTheme {
     return ThemeData(
@@ -225,6 +226,7 @@ class ThemeService extends GetxController {
       ),
     );
   }
+
   // Dark Theme
   static ThemeData get darkTheme {
     return ThemeData(
