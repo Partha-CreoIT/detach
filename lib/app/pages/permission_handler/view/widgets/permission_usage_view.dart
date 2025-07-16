@@ -50,9 +50,9 @@ class PermissionUsageView extends GetView<PermissionController> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                 ),
-                child: Column(
+                child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
                       '📋 Instructions:',
                       style: TextStyle(
@@ -84,7 +84,7 @@ class PermissionUsageView extends GetView<PermissionController> {
                 controller.resetPermissionCheck();
               },
               style: ElevatedButton.styleFrom(
-                shape: SmoothRectangleBorder(
+                shape: const SmoothRectangleBorder(
                   borderRadius: SmoothBorderRadius.all(
                     SmoothRadius(cornerRadius: 16, cornerSmoothing: 1),
                   ),

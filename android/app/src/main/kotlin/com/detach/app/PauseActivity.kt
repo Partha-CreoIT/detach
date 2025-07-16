@@ -8,6 +8,7 @@ import android.content.SharedPreferences
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -25,6 +26,8 @@ class PauseActivity : FlutterActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private var timerRunnable: Runnable? = null
 
+    private val TAG = "PauseActivity"
+
     private val sessionEndReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == "SESSION_END") {
@@ -35,19 +38,20 @@ class PauseActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_pause)
-        
+
         sharedPreferences = getSharedPreferences("DetachPrefs", Context.MODE_PRIVATE)
-        
-        // Register broadcast receiver
+
         val filter = IntentFilter("SESSION_END")
-        registerReceiver(sessionEndReceiver, filter)
-        
-        // Get session data from intent
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            registerReceiver(sessionEndReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(sessionEndReceiver, filter)
+        }
+
         sessionKey = intent.getStringExtra("sessionKey")
         startTime = intent.getLongExtra("startTime", 0)
         duration = intent.getLongExtra("duration", 0)
-        
+
         if (sessionKey != null && startTime > 0 && duration > 0) {
             saveSessionData()
             startTimer()
@@ -59,8 +63,7 @@ class PauseActivity : FlutterActivity() {
             val startTimeStr = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(startTime))
             val endTime = startTime + duration
             val endTimeStr = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(endTime))
-            
-            // Save to SharedPreferences as fallback
+
             sharedPreferences.edit().apply {
                 putString("${key}_startTime", startTimeStr)
                 putString("${key}_endTime", endTimeStr)
@@ -69,14 +72,12 @@ class PauseActivity : FlutterActivity() {
                 putLong("${key}_duration", duration)
                 apply()
             }
-            
-            // Try multiple methods to communicate with AppLaunchInterceptor
+
             sendSessionDataToService(key, startTimeStr, endTimeStr, startTime, endTime, duration)
         }
     }
 
     private fun sendSessionDataToService(sessionKey: String, startTimeStr: String, endTimeStr: String, startTime: Long, endTime: Long, duration: Long) {
-        // Method 1: Local broadcast
         val broadcastIntent = Intent("SESSION_DATA_SAVE").apply {
             putExtra("sessionKey", sessionKey)
             putExtra("startTimeStr", startTimeStr)
@@ -86,8 +87,7 @@ class PauseActivity : FlutterActivity() {
             putExtra("duration", duration)
         }
         sendBroadcast(broadcastIntent)
-        
-        // Method 2: Explicit service intent
+
         val serviceIntent = Intent(this, AppLaunchInterceptor::class.java).apply {
             action = "SAVE_SESSION_DATA"
             putExtra("sessionKey", sessionKey)
@@ -98,14 +98,6 @@ class PauseActivity : FlutterActivity() {
             putExtra("duration", duration)
         }
         startService(serviceIntent)
-        
-        // Method 3: Direct method call (if service is running)
-        try {
-            val service = AppLaunchInterceptor()
-            service.saveSessionData(sessionKey, startTimeStr, endTimeStr, startTime, endTime, duration)
-        } catch (e: Exception) {
-            // Service might not be running, which is expected
-        }
     }
 
     private fun startTimer() {
@@ -116,13 +108,11 @@ class PauseActivity : FlutterActivity() {
                     val currentTime = System.currentTimeMillis()
                     val elapsed = currentTime - startTime
                     val remaining = duration - elapsed
-                    
+
                     if (remaining <= 0) {
-                        // Timer finished
                         isTimerRunning = false
                         finish()
                     } else {
-                        // Update timer display
                         updateTimerDisplay(remaining)
                         handler.postDelayed(this, 1000)
                     }
@@ -135,8 +125,6 @@ class PauseActivity : FlutterActivity() {
     private fun updateTimerDisplay(remainingMillis: Long) {
         val minutes = remainingMillis / 60000
         val seconds = (remainingMillis % 60000) / 1000
-        
-        // Send timer update to Flutter
         methodChannel.invokeMethod("updateTimer", "$minutes:$seconds")
     }
 
@@ -144,15 +132,11 @@ class PauseActivity : FlutterActivity() {
         super.onDestroy()
         isTimerRunning = false
         timerRunnable?.let { handler.removeCallbacks(it) }
-        
-        // Unregister broadcast receiver
+
         try {
             unregisterReceiver(sessionEndReceiver)
-        } catch (e: Exception) {
-            // Receiver might not be registered
-        }
-        
-        // Check if app was closed early
+        } catch (_: Exception) {}
+
         checkEarlyClose()
     }
 
@@ -160,9 +144,8 @@ class PauseActivity : FlutterActivity() {
         sessionKey?.let { key ->
             val currentTime = System.currentTimeMillis()
             val expectedEndTime = startTime + duration
-            
+
             if (currentTime < expectedEndTime) {
-                // App was closed early, save this information
                 val earlyCloseTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(currentTime))
                 sharedPreferences.edit().apply {
                     putString("${key}_earlyCloseTime", earlyCloseTime)
@@ -170,8 +153,7 @@ class PauseActivity : FlutterActivity() {
                     putBoolean("${key}_closedEarly", true)
                     apply()
                 }
-                
-                // Notify AppLaunchInterceptor about early close
+
                 val earlyCloseIntent = Intent("EARLY_CLOSE_DETECTED").apply {
                     putExtra("sessionKey", key)
                     putExtra("earlyCloseTime", earlyCloseTime)
@@ -179,8 +161,7 @@ class PauseActivity : FlutterActivity() {
                     putExtra("expectedEndTime", expectedEndTime)
                 }
                 sendBroadcast(earlyCloseIntent)
-                
-                // Also try direct service call
+
                 val serviceIntent = Intent(this, AppLaunchInterceptor::class.java).apply {
                     action = "EARLY_CLOSE_DETECTED"
                     putExtra("sessionKey", key)
@@ -195,7 +176,7 @@ class PauseActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        
+
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
         methodChannel.setMethodCallHandler { call, result ->
             when (call.method) {
@@ -208,13 +189,58 @@ class PauseActivity : FlutterActivity() {
                     )
                     result.success(sessionInfo)
                 }
+
                 "stopTimer" -> {
                     isTimerRunning = false
                     timerRunnable?.let { handler.removeCallbacks(it) }
                     result.success(null)
                 }
+
+                "goToHomeAndFinish" -> {
+                    val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                        addCategory(Intent.CATEGORY_HOME)
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    startActivity(homeIntent)
+                    finishAndRemoveTask()
+                    result.success(null)
+                }
+
+                "launchApp" -> {
+                    val packageName = call.argument<String>("packageName")
+                    Log.d(TAG, "Attempting to launch app: $packageName")
+
+                    if (packageName != null) {
+                        try {
+                            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+                            if (launchIntent != null) {
+                                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                launchIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+
+                                startActivity(launchIntent)
+                                Log.d(TAG, "Successfully launched app: $packageName")
+                                result.success(true)
+                            } else {
+                                Log.e(TAG, "Launch intent is null for package: $packageName")
+                                result.error("NO_LAUNCH_INTENT", "Cannot launch app: no launch intent", null)
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error launching app $packageName: ${e.message}", e)
+                            result.error("LAUNCH_ERROR", "Error launching app: ${e.message}", null)
+                        }
+                    } else {
+                        result.error("INVALID_ARG", "Package name is null.", null)
+                    }
+                }
+
                 else -> result.notImplemented()
             }
         }
+    }
+
+    override fun getInitialRoute(): String {
+        val packageName = intent.getStringExtra("blocked_app_package") ?: "unknown"
+        return "/pause?package=$packageName"
     }
 }

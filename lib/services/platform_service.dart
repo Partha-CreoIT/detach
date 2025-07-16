@@ -51,7 +51,8 @@ class PlatformService {
     try {
       await _channel.invokeMethod('launchApp', {'packageName': packageName});
     } catch (e) {
-      // Handle error
+      print('Error launching app $packageName: $e');
+      rethrow; // Re-throw to let calling code handle it
     }
   }
 
@@ -113,6 +114,15 @@ class PlatformService {
   static Future<void> closeApp() async {
     try {
       await _channel.invokeMethod('closeApp');
+    } catch (e) {}
+  }
+
+  /// Notify the native side that an app was blocked
+  static Future<void> notifyAppBlocked(String packageName) async {
+    try {
+      await _channel.invokeMethod('notifyAppBlocked', {
+        'packageName': packageName,
+      });
     } catch (e) {}
   }
 }

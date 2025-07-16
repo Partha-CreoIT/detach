@@ -53,14 +53,22 @@ class MainActivity : FlutterActivity() {
                 }
                 "startBlockerService" -> {
                     val apps = call.argument<List<String>>("blockedApps")
+                    Log.d(TAG, "Received blocked apps: $apps")
 
                     if (apps != null) {
                         val prefs =
                             getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-                        prefs.edit().putStringSet("blocked_apps", apps.toSet()).apply()
+                        
+                        // Store as both StringSet (for native compatibility) and StringList (for Flutter compatibility)
+                        prefs.edit().apply {
+                            putStringSet("blocked_apps", apps.toSet())
+                            putString("blocked_apps_list", apps.joinToString(","))
+                            apply()
+                        }
 
                         // Verify the save worked
                         val savedApps = prefs.getStringSet("blocked_apps", null)
+                        Log.d(TAG, "Saved blocked apps as set: $savedApps")
 
                         // Start the AppLaunchInterceptor service
                         val interceptorIntent = Intent(this, AppLaunchInterceptor::class.java)
@@ -72,23 +80,65 @@ class MainActivity : FlutterActivity() {
                         val runningServices = am.getRunningServices(Integer.MAX_VALUE)
                         val isServiceRunning =
                             runningServices.any { it.service.className == "com.detach.app.AppLaunchInterceptor" }
+                        Log.d(TAG, "AppLaunchInterceptor service running: $isServiceRunning")
 
                     } else {
-
+                        Log.e(TAG, "Blocked apps list is null")
                     }
                     result.success(null)
                 }
                 "launchApp" -> {
                     val packageName = call.argument<String>("packageName")
+                    Log.d(TAG, "Attempting to launch app: $packageName")
 
                     if (packageName != null) {
-                        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
-                        if (launchIntent != null) {
-                            startActivity(launchIntent)
-                            result.success(true)
-                        } else {
-
-                            result.error("UNAVAILABLE", "Could not launch app.", null)
+                        try {
+                            // First check if the app is actually installed and user-facing
+                            val appInfo = try {
+                                packageManager.getApplicationInfo(packageName, 0)
+                            } catch (e: Exception) {
+                                null
+                            }
+                            
+                            Log.d(TAG, "App info for $packageName: enabled=${appInfo?.enabled}, system=${appInfo?.flags?.and(android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0}")
+                            
+                            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+                            Log.d(TAG, "Launch intent for $packageName: $launchIntent")
+                            
+                            if (launchIntent != null) {
+                                // Add flags to ensure proper app launch
+                                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                launchIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                                
+                                startActivity(launchIntent)
+                                Log.d(TAG, "Successfully launched app: $packageName")
+                                result.success(true)
+                            } else {
+                                Log.e(TAG, "Launch intent is null for package: $packageName")
+                                // Try alternative method - check if app is installed
+                                val appInfoCheck = try {
+                                    packageManager.getApplicationInfo(packageName, 0)
+                                } catch (e: Exception) {
+                                    null
+                                }
+                                
+                                if (appInfoCheck != null) {
+                                    Log.d(TAG, "App is installed but no launch intent, trying alternative method")
+                                    // Try to open app info page as fallback
+                                    val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                                    intent.data = android.net.Uri.parse("package:$packageName")
+                                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    startActivity(intent)
+                                    result.error("NO_LAUNCH_INTENT", "App installed but cannot be launched directly", null)
+                                } else {
+                                    Log.e(TAG, "App not installed: $packageName")
+                                    result.error("NOT_INSTALLED", "App is not installed.", null)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error launching app $packageName: ${e.message}", e)
+                            result.error("LAUNCH_ERROR", "Error launching app: ${e.message}", null)
                         }
                     } else {
                         result.error("INVALID_ARG", "Package name is null.", null)
@@ -135,6 +185,38 @@ class MainActivity : FlutterActivity() {
                 "closeApp" -> {
                     // This will close the Flutter activity and remove the task from recents
                     finishAndRemoveTask()
+                    result.success(null)
+                }
+                "goToHomeAndFinish" -> {
+                    // Go to home screen and finish the current activity
+                    val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                        addCategory(Intent.CATEGORY_HOME)
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    startActivity(homeIntent)
+                    finishAndRemoveTask()
+                    result.success(null)
+                }
+                "startAppSession" -> {
+                    val packageName = call.argument<String>("packageName")
+                    val durationSeconds = call.argument<Int>("durationSeconds")
+                    
+                    if (packageName != null && durationSeconds != null) {
+                        // Send session data to AppLaunchInterceptor
+                        val sessionIntent = Intent(this, AppLaunchInterceptor::class.java).apply {
+                            action = "com.example.detach.START_APP_SESSION"
+                            putExtra("packageName", packageName)
+                            putExtra("durationSeconds", durationSeconds)
+                        }
+                        startService(sessionIntent)
+                    }
+                    result.success(null)
+                }
+                "notifyAppBlocked" -> {
+                    val packageName = call.argument<String>("packageName")
+                    if (packageName != null) {
+                        notifyAppBlocked(packageName)
+                    }
                     result.success(null)
                 }
                 else -> {
@@ -267,5 +349,12 @@ class MainActivity : FlutterActivity() {
         intent.putExtra("package_name", packageName)
         sendBroadcast(intent)
 
+    }
+
+    private fun notifyAppBlocked(packageName: String) {
+        // Send broadcast to AppLaunchInterceptor to notify that an app was blocked
+        val intent = Intent("com.example.detach.APP_BLOCKED")
+        intent.putExtra("package_name", packageName)
+        sendBroadcast(intent)
     }
 }

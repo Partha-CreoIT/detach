@@ -96,6 +96,8 @@ class HomeController extends GetxController {
     } else {
       selectedAppPackages.add(app.packageName);
       AnalyticsService.to.logAppBlocked(app.name);
+      // Notify native side that app was blocked to prevent immediate pause screen
+      PlatformService.notifyAppBlocked(app.packageName);
     }
     // Always refresh the observable list
     selectedAppPackages.refresh();

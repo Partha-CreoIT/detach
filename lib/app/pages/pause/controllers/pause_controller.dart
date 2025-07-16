@@ -6,6 +6,7 @@ import 'package:detach/services/analytics_service.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:detach/app/routes/app_routes.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class PauseController extends GetxController with GetTickerProviderStateMixin {
   late AnimationController waterController;
   late Animation<double> waterAnimation;
+
   // Timer/slider logic for PauseView
   final RxBool showTimer = false.obs;
   final RxBool showCountdown = false.obs;
@@ -24,8 +26,10 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   late Animation<double> progressAnim;
   Timer? timer;
   String appNameStr = "Google Docs";
+
   String get displayAppName =>
       appName.value.isNotEmpty ? appName.value : appNameStr;
+
   String get timeString {
     final remaining = countdownSeconds.value - elapsedSeconds.value;
     final minutes = (remaining ~/ 60).toString().padLeft(2, '0');
@@ -186,11 +190,29 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
             lockedPackageName!, sessionDuration);
 
         // Launch the app
-        await Future.delayed(const Duration(milliseconds: 500));
-
         print('Launching app: $lockedPackageName');
-        await PlatformService.launchApp(lockedPackageName!);
-        // Close the pause screen
+        try {
+          //await PlatformService.launchApp(lockedPackageName!);
+          await const MethodChannel(
+            'com.detach.app/pause',
+          ).invokeMethod('launchApp', {'packageName': lockedPackageName});
+          print('App launch successful');
+        } catch (e) {
+          print('App launch failed: $e');
+          // Show error to user
+          Get.snackbar(
+            'Launch Error',
+            'Could not open app. Error: ${e.toString()}',
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 5),
+          );
+          return; // Don't proceed with timer if app launch failed
+        }
+
+        // Wait a bit for the app to start, then close the pause screen
+        await Future.delayed(const Duration(milliseconds: 1500));
+
         Get.back();
       }
       // Start the countdown timer
@@ -254,6 +276,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   void openApp() async {
     // This is now handled in startCountdown
   }
+
   void blockApp() async {
     if (lockedPackageName != null) {
       await AppCountService.incrementAppCount(lockedPackageName!);
@@ -263,8 +286,8 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
         await PlatformService.resetPauseFlag(lockedPackageName!);
       } catch (e) {}
     }
-    await MethodChannel(
-      'com.detach.app/permissions',
+    await const MethodChannel(
+      'com.detach.app/pause',
     ).invokeMethod('goToHomeAndFinish');
   }
 
@@ -282,13 +305,16 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   List<AppInfo> allApps = [];
   RxBool showButtons = false.obs;
   RxBool timerStarted = false.obs;
+
   @override
   void onInit() {
     super.onInit();
     lockedPackageName = Get.parameters['package'];
     // If no package name is provided, this is not a valid pause session
     if (lockedPackageName == null) {
-      Get.offAllNamed(AppRoutes.home);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Get.offAllNamed(AppRoutes.home);
+      });
       return;
     }
 
