@@ -1,220 +1,331 @@
 package com.detach.app
-
-import android.content.BroadcastReceiver
+import android.app.AppOpsManager
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
-import android.content.SharedPreferences
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
+import android.os.PowerManager
+import android.provider.Settings
+import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
-import java.text.SimpleDateFormat
-import java.util.*
-
 class PauseActivity : FlutterActivity() {
-    private val CHANNEL = "com.detach.app/pause"
-    private lateinit var methodChannel: MethodChannel
-    private lateinit var sharedPreferences: SharedPreferences
-    private var sessionKey: String? = null
-    private var startTime: Long = 0
-    private var duration: Long = 0
-    private var isTimerRunning = false
-    private val handler = Handler(Looper.getMainLooper())
-    private var timerRunnable: Runnable? = null
-
-    private val sessionEndReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == "SESSION_END") {
-                finish()
-            }
-        }
-    }
-
+    private val CHANNEL = "com.detach.app/permissions"
+    private val TAG = "PauseActivity"
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_pause)
-        
-        sharedPreferences = getSharedPreferences("DetachPrefs", Context.MODE_PRIVATE)
-        
-        // Register broadcast receiver
-        val filter = IntentFilter("SESSION_END")
-        registerReceiver(sessionEndReceiver, filter)
-        
-        // Get session data from intent
-        sessionKey = intent.getStringExtra("sessionKey")
-        startTime = intent.getLongExtra("startTime", 0)
-        duration = intent.getLongExtra("duration", 0)
-        
-        if (sessionKey != null && startTime > 0 && duration > 0) {
-            saveSessionData()
-            startTimer()
+        val packageName = intent.getStringExtra("blocked_app_package")
+        val showLock = intent.getBooleanExtra("show_lock", true) // Default to true
+
+
+
+
+        // Check if we should actually show the PauseActivity
+        val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+        val blockedApps = prefs.getStringSet("blocked_apps", null)
+        val isAppBlocked = packageName != null && blockedApps != null && blockedApps.contains(packageName)
+
+
+        // Only show pause screen if properly launched with a blocked app
+        // and if showLock is true (user is trying to open the app)
+        if (packageName == null || !showLock || !isAppBlocked) {
+
+            finish()
+            return
         }
     }
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
 
-    private fun saveSessionData() {
-        sessionKey?.let { key ->
-            val startTimeStr = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(startTime))
-            val endTime = startTime + duration
-            val endTimeStr = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(endTime))
-            
-            // Save to SharedPreferences as fallback
-            sharedPreferences.edit().apply {
-                putString("${key}_startTime", startTimeStr)
-                putString("${key}_endTime", endTimeStr)
-                putLong("${key}_startTimeMillis", startTime)
-                putLong("${key}_endTimeMillis", endTime)
-                putLong("${key}_duration", duration)
-                apply()
-            }
-            
-            // Try multiple methods to communicate with AppLaunchInterceptor
-            sendSessionDataToService(key, startTimeStr, endTimeStr, startTime, endTime, duration)
-        }
-    }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "closeBothApps" -> {
 
-    private fun sendSessionDataToService(sessionKey: String, startTimeStr: String, endTimeStr: String, startTime: Long, endTime: Long, duration: Long) {
-        // Method 1: Local broadcast
-        val broadcastIntent = Intent("SESSION_DATA_SAVE").apply {
-            putExtra("sessionKey", sessionKey)
-            putExtra("startTimeStr", startTimeStr)
-            putExtra("endTimeStr", endTimeStr)
-            putExtra("startTime", startTime)
-            putExtra("endTime", endTime)
-            putExtra("duration", duration)
-        }
-        sendBroadcast(broadcastIntent)
-        
-        // Method 2: Explicit service intent
-        val serviceIntent = Intent(this, AppLaunchInterceptor::class.java).apply {
-            action = "SAVE_SESSION_DATA"
-            putExtra("sessionKey", sessionKey)
-            putExtra("startTimeStr", startTimeStr)
-            putExtra("endTimeStr", endTimeStr)
-            putExtra("startTime", startTime)
-            putExtra("endTime", endTime)
-            putExtra("duration", duration)
-        }
-        startService(serviceIntent)
-        
-        // Method 3: Direct method call (if service is running)
-        try {
-            val service = AppLaunchInterceptor()
-            service.saveSessionData(sessionKey, startTimeStr, endTimeStr, startTime, endTime, duration)
-        } catch (e: Exception) {
-            // Service might not be running, which is expected
-        }
-    }
+                    closeBothApps()
+                    result.success(null)
+                }
+                "goToHomeAndFinish" -> {
+                    goToHomeAndFinish()
+                    result.success(null)
+                }
+                "resetAppBlock" -> {
+                    val packageName = call.argument<String>("packageName")
 
-    private fun startTimer() {
-        isTimerRunning = true
-        timerRunnable = object : Runnable {
-            override fun run() {
-                if (isTimerRunning) {
-                    val currentTime = System.currentTimeMillis()
-                    val elapsed = currentTime - startTime
-                    val remaining = duration - elapsed
-                    
-                    if (remaining <= 0) {
-                        // Timer finished
-                        isTimerRunning = false
-                        finish()
+                    if (packageName != null) {
+                        resetAppBlock(packageName)
+                        result.success(null)
                     } else {
-                        // Update timer display
-                        updateTimerDisplay(remaining)
-                        handler.postDelayed(this, 1000)
+                        result.error("INVALID_ARG", "Package name is null.", null)
+                    }
+                }
+                "resetPauseFlag" -> {
+                    val packageName = call.argument<String>("packageName")
+
+                    if (packageName != null) {
+                        resetPauseFlag(packageName)
+                        result.success(null)
+                    } else {
+                        result.error("INVALID_ARG", "Package name is null.", null)
+                    }
+                }
+                "launchApp" -> {
+                    val packageName = call.argument<String>("packageName")
+
+                    if (packageName != null) {
+                        launchApp(packageName)
+                        result.success(null)
+                    } else {
+                        result.error("INVALID_ARG", "Package name is null.", null)
+                    }
+                }
+                "startAppSession" -> {
+                    val packageName = call.argument<String>("packageName")
+                    val durationSeconds = call.argument<Int>("durationSeconds") ?: 0
+
+                    if (packageName != null && durationSeconds > 0) {
+                        Log.d(TAG, "Method channel startAppSession: package=$packageName, duration=$durationSeconds")
+
+                        // Method 1: Try broadcast
+                        startAppSession(packageName, durationSeconds)
+
+                        // Method 2: Direct service call
+                        try {
+                            val serviceIntent = Intent(this, AppLaunchInterceptor::class.java)
+                            serviceIntent.action = "com.example.detach.START_APP_SESSION"
+                            serviceIntent.putExtra("package_name", packageName)
+                            serviceIntent.putExtra("duration_seconds", durationSeconds)
+                            startService(serviceIntent)
+                            Log.d(TAG, "Direct service call sent for startAppSession")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error in direct service call: ${e.message}")
+                        }
+
+                        result.success(null)
+                    } else {
+                        result.error("INVALID_ARG", "Invalid package name or duration", null)
+                    }
+                }
+                "startBlockerService" -> {
+                    val apps = call.argument<List<String>>("blockedApps")
+
+                    if (apps != null) {
+                        // Save to SharedPreferences
+                        val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                        prefs.edit().putStringSet("blocked_apps", apps.toSet()).apply()
+
+                        // Start the AppLaunchInterceptor service
+                        val interceptorIntent = Intent(this, AppLaunchInterceptor::class.java)
+                        startService(interceptorIntent)
+
+                        result.success(null)
+                    } else {
+                        result.error("INVALID_ARG", "No apps provided", null)
+                    }
+                }
+                "permanentlyBlockApp" -> {
+                    val packageName = call.argument<String>("packageName")
+                    val isAdminBlock = call.argument<Boolean>("isAdminBlock") ?: false
+
+                    if (packageName != null) {
+                        // Send broadcast to AppLaunchInterceptor to permanently block the app
+                        val intent = Intent("com.example.detach.PERMANENTLY_BLOCK_APP")
+                        intent.putExtra("package_name", packageName)
+                        intent.putExtra("is_admin_block", isAdminBlock)
+                        sendBroadcast(intent)
+
+                        // Also add to blocked apps list in SharedPreferences if not already there
+                        val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                        val blockedApps = prefs.getStringSet("blocked_apps", mutableSetOf()) ?: mutableSetOf()
+                        if (!blockedApps.contains(packageName)) {
+                            val newBlockedApps = blockedApps.toMutableSet()
+                            newBlockedApps.add(packageName)
+                            prefs.edit().putStringSet("blocked_apps", newBlockedApps).apply()
+
+                        }
+                        result.success(null)
+                    } else {
+                        result.error("INVALID_ARG", "Package name is null.", null)
+                    }
+                }
+                else -> {
+                    result.notImplemented()
+                }
+            }
+        }
+    }
+
+    private fun startAppSession(packageName: String, durationSeconds: Int) {
+        Log.d(TAG, "=== PauseActivity startAppSession called for $packageName, duration: $durationSeconds seconds ===")
+
+        // Send broadcast to AppLaunchInterceptor to start tracking this app session
+        val intent = Intent("com.example.detach.START_APP_SESSION")
+        intent.putExtra("package_name", packageName)
+        intent.putExtra("duration_seconds", durationSeconds)
+
+        Log.d(TAG, "Sending broadcast: ${intent.action} with package=$packageName, duration=$durationSeconds")
+
+        // Try multiple ways to send the broadcast
+        try {
+            // Method 1: Local broadcast
+            sendBroadcast(intent)
+            Log.d(TAG, "Local broadcast sent successfully")
+
+            // Method 2: Explicit broadcast to AppLaunchInterceptor
+            val explicitIntent = Intent(this, AppLaunchInterceptor::class.java)
+            explicitIntent.action = "com.example.detach.START_APP_SESSION"
+            explicitIntent.putExtra("package_name", packageName)
+            explicitIntent.putExtra("duration_seconds", durationSeconds)
+            startService(explicitIntent)
+            Log.d(TAG, "Explicit service intent sent successfully")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending broadcast: ${e.message}")
+        }
+
+        Log.d(TAG, "=== PauseActivity startAppSession completed for $packageName ===")
+
+        // Fallback: Save session data directly in SharedPreferences
+        try {
+            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val startTime = System.currentTimeMillis()
+            val sessionStartKey = "app_session_${packageName}_start"
+            val sessionDurationKey = "app_session_${packageName}_duration"
+
+            Log.d(TAG, "Fallback: Saving session data directly to SharedPreferences")
+            Log.d(TAG, "Session keys: $sessionStartKey, $sessionDurationKey")
+            Log.d(TAG, "Start time: $startTime")
+
+            prefs.edit()
+                .putString(sessionStartKey, startTime.toString())
+                .putInt(sessionDurationKey, durationSeconds)
+                .apply()
+
+            Log.d(TAG, "Fallback: Session data saved directly to SharedPreferences")
+
+            // Verify the save worked
+            val savedStartTime = prefs.getString(sessionStartKey, null)
+            val savedDuration = prefs.getInt(sessionDurationKey, -1)
+            Log.d(TAG, "Fallback verification - saved startTime: $savedStartTime, saved duration: $savedDuration")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in fallback session save: ${e.message}")
+        }
+    }
+
+    override fun getInitialRoute(): String {
+        val packageName = intent.getStringExtra("blocked_app_package")
+        val route = if (packageName != null) "/pause?package=$packageName" else "/pause"
+
+        return route
+    }
+    override fun onResume() {
+        super.onResume()
+
+    }
+    override fun onPause() {
+        super.onPause()
+
+    }
+    override fun onDestroy() {
+        super.onDestroy()
+        // Reset the flag in the service
+        AppLaunchInterceptor.currentlyPausedApp = null
+    }
+    private fun closeBothApps() {
+        try {
+
+            // Reset the pause flag since the user is taking action
+            val packageName = intent.getStringExtra("blocked_app_package")
+            if (packageName != null) {
+                resetPauseFlag(packageName)
+            }
+            // Get the ActivityManager
+            val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            // Get recent tasks to find the blocked app
+            val recentTasks = am.getRecentTasks(10, android.app.ActivityManager.RECENT_WITH_EXCLUDED)
+            // Find and close the blocked app
+            for (task in recentTasks) {
+                val baseIntent = task.baseIntent
+                val packageName = baseIntent.component?.packageName
+                if (packageName != null && packageName != this.packageName) {
+
+                    // Try multiple methods to force stop the app
+                    try {
+                        // Method 1: Kill background processes
+                        am.killBackgroundProcesses(packageName)
+
+                        // Method 2: Try to force stop using shell command (requires root or system app)
+                        try {
+                            val process = Runtime.getRuntime().exec(arrayOf("su", "-c", "am force-stop $packageName"))
+                            process.waitFor()
+
+                        } catch (e: Exception) {
+
+                        }
+                        // Method 3: Try to clear recent tasks by restarting the launcher
+                        try {
+                            val homeIntent = Intent(Intent.ACTION_MAIN)
+                            homeIntent.addCategory(Intent.CATEGORY_HOME)
+                            homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            startActivity(homeIntent)
+
+                        } catch (e: Exception) {
+
+                        }
+                    } catch (e: Exception) {
+
                     }
                 }
             }
-        }
-        handler.post(timerRunnable!!)
-    }
+            // Add a small delay to ensure the blocked app is killed
+            Thread.sleep(500)
+            // Close the current app (Detach)
 
-    private fun updateTimerDisplay(remainingMillis: Long) {
-        val minutes = remainingMillis / 60000
-        val seconds = (remainingMillis % 60000) / 1000
-        
-        // Send timer update to Flutter
-        methodChannel.invokeMethod("updateTimer", "$minutes:$seconds")
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        isTimerRunning = false
-        timerRunnable?.let { handler.removeCallbacks(it) }
-        
-        // Unregister broadcast receiver
-        try {
-            unregisterReceiver(sessionEndReceiver)
+            finishAndRemoveTask()
+            // Force stop completely
+            finishAffinity()
+            android.os.Process.killProcess(android.os.Process.myPid())
         } catch (e: Exception) {
-            // Receiver might not be registered
-        }
-        
-        // Check if app was closed early
-        checkEarlyClose()
-    }
 
-    private fun checkEarlyClose() {
-        sessionKey?.let { key ->
-            val currentTime = System.currentTimeMillis()
-            val expectedEndTime = startTime + duration
-            
-            if (currentTime < expectedEndTime) {
-                // App was closed early, save this information
-                val earlyCloseTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(currentTime))
-                sharedPreferences.edit().apply {
-                    putString("${key}_earlyCloseTime", earlyCloseTime)
-                    putLong("${key}_earlyCloseTimeMillis", currentTime)
-                    putBoolean("${key}_closedEarly", true)
-                    apply()
-                }
-                
-                // Notify AppLaunchInterceptor about early close
-                val earlyCloseIntent = Intent("EARLY_CLOSE_DETECTED").apply {
-                    putExtra("sessionKey", key)
-                    putExtra("earlyCloseTime", earlyCloseTime)
-                    putExtra("earlyCloseTimeMillis", currentTime)
-                    putExtra("expectedEndTime", expectedEndTime)
-                }
-                sendBroadcast(earlyCloseIntent)
-                
-                // Also try direct service call
-                val serviceIntent = Intent(this, AppLaunchInterceptor::class.java).apply {
-                    action = "EARLY_CLOSE_DETECTED"
-                    putExtra("sessionKey", key)
-                    putExtra("earlyCloseTime", earlyCloseTime)
-                    putExtra("earlyCloseTimeMillis", currentTime)
-                    putExtra("expectedEndTime", expectedEndTime)
-                }
-                startService(serviceIntent)
-            }
+            // Even if there's an error, try to close the current app
+            finishAndRemoveTask()
+            finishAffinity()
         }
     }
+    fun goToHomeAndFinish() {
+        // Reset the pause flag since the user is taking action
+        val packageName = intent.getStringExtra("blocked_app_package")
+        if (packageName != null) {
+            resetPauseFlag(packageName)
+        }
+        val homeIntent = Intent(Intent.ACTION_MAIN)
+        homeIntent.addCategory(Intent.CATEGORY_HOME)
+        homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(homeIntent)
+        finish()
+    }
+    private fun resetAppBlock(packageName: String) {
+        // Send broadcast to AppLaunchInterceptor to reset the block
+        val intent = Intent("com.example.detach.RESET_APP_BLOCK")
+        intent.putExtra("package_name", packageName)
+        sendBroadcast(intent)
 
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
-        
-        methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
-        methodChannel.setMethodCallHandler { call, result ->
-            when (call.method) {
-                "getSessionInfo" -> {
-                    val sessionInfo = mapOf(
-                        "sessionKey" to sessionKey,
-                        "startTime" to startTime,
-                        "duration" to duration,
-                        "remaining" to (if (isTimerRunning) (startTime + duration - System.currentTimeMillis()) else 0)
-                    )
-                    result.success(sessionInfo)
-                }
-                "stopTimer" -> {
-                    isTimerRunning = false
-                    timerRunnable?.let { handler.removeCallbacks(it) }
-                    result.success(null)
-                }
-                else -> result.notImplemented()
-            }
+    }
+    private fun resetPauseFlag(packageName: String) {
+        // Send broadcast to AppLaunchInterceptor to reset the pause flag
+        val intent = Intent("com.example.detach.RESET_PAUSE_FLAG")
+        intent.putExtra("package_name", packageName)
+        sendBroadcast(intent)
+
+    }
+    private fun launchApp(packageName: String) {
+
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+        if (launchIntent != null) {
+            startActivity(launchIntent)
+
+        } else {
+
         }
     }
 }
