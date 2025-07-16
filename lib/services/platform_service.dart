@@ -115,4 +115,11 @@ class PlatformService {
       await _channel.invokeMethod('closeApp');
     } catch (e) {}
   }
+
+  /// Closes the Flutter app completely (terminates the app)
+  static Future<void> closeFlutterApp() async {
+    try {
+      await _channel.invokeMethod('closeApp');
+    } catch (e) {}
+  }
 }

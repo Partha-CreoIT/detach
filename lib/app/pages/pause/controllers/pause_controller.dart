@@ -17,21 +17,14 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   final RxBool showTimer = false.obs;
   final RxBool showCountdown = false.obs;
   final int maxMinutes = 30;
-  final RxInt selectedMinutes = 5.obs;
-  final RxInt elapsedSeconds = 0.obs;
-  final RxInt countdownSeconds = 0.obs;
+  final RxInt selectedMinutes = 30.obs; // Changed from 5 to 30 as default
+  // Timer variables removed - Android handles everything
   late AnimationController progressController;
   late Animation<double> progressAnim;
-  Timer? timer;
   String appNameStr = "Google Docs";
   String get displayAppName =>
       appName.value.isNotEmpty ? appName.value : appNameStr;
-  String get timeString {
-    final remaining = countdownSeconds.value - elapsedSeconds.value;
-    final minutes = (remaining ~/ 60).toString().padLeft(2, '0');
-    final seconds = (remaining % 60).toString().padLeft(2, '0');
-    return "$minutes:$seconds";
-  }
+  // timeString removed - Android handles timer display
 
   // Add these new variables to track app usage
   DateTime? _appStartTime;
@@ -133,13 +126,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
       print('=== startCountdown called ===');
       print('lockedPackageName: $lockedPackageName');
       print('selectedMinutes: ${selectedMinutes.value}');
-
-      showCountdown.value = true;
-      countdownSeconds.value = selectedMinutes.value * 60;
-      elapsedSeconds.value = 0;
-      progressController.duration = Duration(minutes: selectedMinutes.value);
-      progressController.value = 0;
-      timer?.cancel();
+      print('Session duration will be: ${selectedMinutes.value * 60} seconds');
 
       // Reset the pause flag so the pause screen can show again for this app
       if (lockedPackageName != null) {
@@ -178,7 +165,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
           print('Error updating blocker service: $e');
         }
 
-        // Start tracking this app session in the native layer
+        // Start tracking this app session in the native layer with Android timer
         final sessionDuration = selectedMinutes.value * 60;
         print(
             'Starting app session for $lockedPackageName with duration: $sessionDuration seconds');
@@ -190,66 +177,27 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
 
         print('Launching app: $lockedPackageName');
         await PlatformService.launchApp(lockedPackageName!);
-        // Close the pause screen
-        Get.back();
-      }
-      // Start the countdown timer
-      timer = Timer.periodic(const Duration(seconds: 1), (t) async {
-        elapsedSeconds.value++;
-        if (elapsedSeconds.value % 60 == 0) {
-          HapticFeedback.mediumImpact();
-        }
-        if (elapsedSeconds.value >= countdownSeconds.value) {
-          timer?.cancel();
 
-          _handleTimeUp();
-        }
-        progressController.value =
-            elapsedSeconds.value / countdownSeconds.value;
-      });
+        // Close the Flutter app completely - timer will continue in Android
+        print(
+            'Closing Flutter app - timer will continue in Android background');
+        await PlatformService.closeFlutterApp();
+      }
+
       // Log analytics
       await AnalyticsService.to.logPauseSession(selectedMinutes.value);
-    } catch (e, stackTrace) {}
+    } catch (e, stackTrace) {
+      print('Error in startCountdown: $e');
+    }
   }
 
-  void _handleTimeUp() async {
-    try {
-      if (lockedPackageName != null) {
-        // Add the app back to blocked list
-        final prefs = await SharedPreferences.getInstance();
-        final blockedApps = prefs.getStringList("blocked_apps")?.toList() ?? [];
+  // _handleTimeUp is now handled by Android timer system
+  // No need for Flutter timer handling since Android manages everything
 
-        if (!blockedApps.contains(lockedPackageName)) {
-          blockedApps.add(lockedPackageName!);
-          await prefs.setStringList("blocked_apps", blockedApps);
-
-          // Update the blocker service with new list
-          try {
-            await PlatformService.startBlockerService(blockedApps);
-          } catch (e) {}
-        }
-
-        // Clear the session data since time is up
-        if (_currentSessionKey != null) {
-          await prefs.remove(_currentSessionKey!);
-          await prefs.remove('${_currentSessionKey!}_duration');
-        }
-
-        // Close both apps and return to pause view
-        await PlatformService.closeBothApps();
-        // Reset states
-        showTimer.value = false;
-        showCountdown.value = false;
-        showButtons.value = true;
-        // Update attempts count
-        attemptsToday.value = await AppCountService.getAppCount(
-          lockedPackageName!,
-        );
-        // Log analytics
-        AnalyticsService.to.logPauseSessionCompleted(countdownSeconds.value);
-      }
-    } catch (e, stackTrace) {}
-  }
+  // Remove Flutter timer variables since Android handles everything
+  // Timer? timer; - REMOVED
+  // RxInt elapsedSeconds = 0.obs; - REMOVED
+  // RxInt countdownSeconds = 0.obs; - REMOVED
 
   void openApp() async {
     // This is now handled in startCountdown
@@ -271,8 +219,13 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   void continueApp() async {
     AnalyticsService.to.logPauseSessionInterrupted();
     showTimer.value = true;
-    elapsedSeconds.value = 0;
     progressController.value = 0;
+  }
+
+  // Method to update selected minutes from timer slider
+  void updateSelectedMinutes(int minutes) {
+    selectedMinutes.value = minutes;
+    print('Updated selected minutes to: $minutes');
   }
 
   RxInt start = 60.obs;
@@ -344,30 +297,13 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     }
   }
 
-  void startTimer() {
-    timerStarted.value = true;
-    AnalyticsService.to.logPauseSession(start.value);
-    timer = Timer.periodic(const Duration(seconds: 1), (t) async {
-      if (start.value == 0) {
-        t.cancel();
-        AnalyticsService.to.logPauseSessionCompleted(60);
-        await PlatformService.closeBothApps();
-        if (lockedPackageName != null) {
-          Future.delayed(const Duration(milliseconds: 500), () async {
-            await PlatformService.launchApp(lockedPackageName!);
-          });
-        }
-      } else {
-        start.value--;
-      }
-    });
-  }
+  // startTimer removed - Android handles timer completely
 
   @override
   void onClose() {
     waterController.dispose();
     progressController.dispose();
-    timer?.cancel();
+    // timer?.cancel(); - removed since Android handles timer
     super.onClose();
   }
 }

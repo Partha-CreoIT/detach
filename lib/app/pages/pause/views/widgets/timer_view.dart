@@ -68,8 +68,7 @@ class TimerView extends GetView<PauseController> {
                       Obx(
                         () => ModernTimeSlider(
                           value: controller.selectedMinutes.value,
-                          onChanged: (v) =>
-                              controller.selectedMinutes.value = v,
+                          onChanged: (v) => controller.updateSelectedMinutes(v),
                         ),
                       ),
                       const SizedBox(height: 12),

@@ -48,6 +48,10 @@ class PauseActivity : FlutterActivity() {
                     goToHomeAndFinish()
                     result.success(null)
                 }
+                "closeApp" -> {
+                    closeApp()
+                    result.success(null)
+                }
                 "resetAppBlock" -> {
                     val packageName = call.argument<String>("packageName")
 
@@ -157,59 +161,19 @@ class PauseActivity : FlutterActivity() {
     private fun startAppSession(packageName: String, durationSeconds: Int) {
         Log.d(TAG, "=== PauseActivity startAppSession called for $packageName, duration: $durationSeconds seconds ===")
 
-        // Send broadcast to AppLaunchInterceptor to start tracking this app session
-        val intent = Intent("com.example.detach.START_APP_SESSION")
-        intent.putExtra("package_name", packageName)
-        intent.putExtra("duration_seconds", durationSeconds)
-
-        Log.d(TAG, "Sending broadcast: ${intent.action} with package=$packageName, duration=$durationSeconds")
-
-        // Try multiple ways to send the broadcast
+        // Only send direct service call, avoid multiple calls
         try {
-            // Method 1: Local broadcast
-            sendBroadcast(intent)
-            Log.d(TAG, "Local broadcast sent successfully")
-
-            // Method 2: Explicit broadcast to AppLaunchInterceptor
-            val explicitIntent = Intent(this, AppLaunchInterceptor::class.java)
-            explicitIntent.action = "com.example.detach.START_APP_SESSION"
-            explicitIntent.putExtra("package_name", packageName)
-            explicitIntent.putExtra("duration_seconds", durationSeconds)
-            startService(explicitIntent)
-            Log.d(TAG, "Explicit service intent sent successfully")
-
+            val serviceIntent = Intent(this, AppLaunchInterceptor::class.java)
+            serviceIntent.action = "com.example.detach.START_APP_SESSION"
+            serviceIntent.putExtra("package_name", packageName)
+            serviceIntent.putExtra("duration_seconds", durationSeconds)
+            startService(serviceIntent)
+            Log.d(TAG, "Service intent sent for startAppSession")
         } catch (e: Exception) {
-            Log.e(TAG, "Error sending broadcast: ${e.message}")
+            Log.e(TAG, "Error in service call: ${e.message}")
         }
 
         Log.d(TAG, "=== PauseActivity startAppSession completed for $packageName ===")
-
-        // Fallback: Save session data directly in SharedPreferences
-        try {
-            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            val startTime = System.currentTimeMillis()
-            val sessionStartKey = "app_session_${packageName}_start"
-            val sessionDurationKey = "app_session_${packageName}_duration"
-
-            Log.d(TAG, "Fallback: Saving session data directly to SharedPreferences")
-            Log.d(TAG, "Session keys: $sessionStartKey, $sessionDurationKey")
-            Log.d(TAG, "Start time: $startTime")
-
-            prefs.edit()
-                .putString(sessionStartKey, startTime.toString())
-                .putInt(sessionDurationKey, durationSeconds)
-                .apply()
-
-            Log.d(TAG, "Fallback: Session data saved directly to SharedPreferences")
-
-            // Verify the save worked
-            val savedStartTime = prefs.getString(sessionStartKey, null)
-            val savedDuration = prefs.getInt(sessionDurationKey, -1)
-            Log.d(TAG, "Fallback verification - saved startTime: $savedStartTime, saved duration: $savedDuration")
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error in fallback session save: ${e.message}")
-        }
     }
 
     override fun getInitialRoute(): String {
@@ -326,6 +290,35 @@ class PauseActivity : FlutterActivity() {
 
         } else {
 
+        }
+    }
+
+    private fun closeApp() {
+        try {
+            Log.d(TAG, "=== closeApp called ===")
+            
+            // Reset the pause flag since we're closing
+            val packageName = intent.getStringExtra("blocked_app_package")
+            if (packageName != null) {
+                resetPauseFlag(packageName)
+            }
+            
+            // Close the current Flutter activity and remove from recents
+            finishAndRemoveTask()
+            // Force stop completely
+            finishAffinity()
+            android.os.Process.killProcess(android.os.Process.myPid())
+            
+            Log.d(TAG, "=== closeApp completed ===")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in closeApp: ${e.message}")
+            // Even if there's an error, try to close the current app
+            try {
+                finishAndRemoveTask()
+                finishAffinity()
+            } catch (e2: Exception) {
+                Log.e(TAG, "Error in fallback closeApp: ${e2.message}")
+            }
         }
     }
 }
