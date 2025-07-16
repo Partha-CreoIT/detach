@@ -20,22 +20,13 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   final RxBool showCountdown = false.obs;
   final int maxMinutes = 30;
   final RxInt selectedMinutes = 5.obs;
-  final RxInt elapsedSeconds = 0.obs;
-  final RxInt countdownSeconds = 0.obs;
+  // Timer variables removed - timer now runs on Android
   late AnimationController progressController;
   late Animation<double> progressAnim;
-  Timer? timer;
   String appNameStr = "Google Docs";
 
   String get displayAppName =>
       appName.value.isNotEmpty ? appName.value : appNameStr;
-
-  String get timeString {
-    final remaining = countdownSeconds.value - elapsedSeconds.value;
-    final minutes = (remaining ~/ 60).toString().padLeft(2, '0');
-    final seconds = (remaining % 60).toString().padLeft(2, '0');
-    return "$minutes:$seconds";
-  }
 
   // Add these new variables to track app usage
   DateTime? _appStartTime;
@@ -123,7 +114,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
           print('Session data cleared');
         }
       } else {
-        print('No active session found for $packageName');
+        // print('No active session found for $packageName');
       }
 
       print('=== checkEarlyClose completed for $packageName ===');
@@ -138,139 +129,85 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
       print('lockedPackageName: $lockedPackageName');
       print('selectedMinutes: ${selectedMinutes.value}');
 
-      showCountdown.value = true;
-      countdownSeconds.value = selectedMinutes.value * 60;
-      elapsedSeconds.value = 0;
-      progressController.duration = Duration(minutes: selectedMinutes.value);
-      progressController.value = 0;
-      timer?.cancel();
+      if (lockedPackageName == null) {
+        print('Error: lockedPackageName is null');
+        return;
+      }
 
       // Reset the pause flag so the pause screen can show again for this app
-      if (lockedPackageName != null) {
-        try {
-          print('Resetting pause flag for $lockedPackageName');
-          await PlatformService.resetPauseFlag(lockedPackageName!);
-        } catch (e) {
-          print('Error resetting pause flag: $e');
-        }
+      try {
+        print('Resetting pause flag for $lockedPackageName');
+        await PlatformService.resetPauseFlag(lockedPackageName!);
+      } catch (e) {
+        print('Error resetting pause flag: $e');
       }
 
-      // First remove the app from blocked list temporarily
-      if (lockedPackageName != null) {
-        final prefs = await SharedPreferences.getInstance();
-        final blockedApps = prefs.getStringList("blocked_apps")?.toList() ?? [];
+      // Remove the app from blocked list temporarily
+      final prefs = await SharedPreferences.getInstance();
+      final blockedApps = prefs.getStringList("blocked_apps")?.toList() ?? [];
 
-        print('Current blocked apps before removing: $blockedApps');
+      print('Current blocked apps before removing: $blockedApps');
 
-        blockedApps.remove(lockedPackageName);
-        await prefs.setStringList("blocked_apps", blockedApps);
-        print('Removed $lockedPackageName from blocked apps: $blockedApps');
+      blockedApps.remove(lockedPackageName);
+      await prefs.setStringList("blocked_apps", blockedApps);
+      print('Removed $lockedPackageName from blocked apps: $blockedApps');
 
-        // First reset the app block to prevent immediate re-blocking
-        try {
-          print('Resetting app block for $lockedPackageName');
-          await PlatformService.resetAppBlock(lockedPackageName!);
-        } catch (e) {
-          print('Error resetting app block: $e');
-        }
+      // Reset the app block to prevent immediate re-blocking
+      try {
+        print('Resetting app block for $lockedPackageName');
+        await PlatformService.resetAppBlock(lockedPackageName!);
+      } catch (e) {
+        print('Error resetting app block: $e');
+      }
 
-        // Update the blocker service with new list
-        try {
-          print('Updating blocker service with apps: $blockedApps');
-          await PlatformService.startBlockerService(blockedApps);
-        } catch (e) {
-          print('Error updating blocker service: $e');
-        }
+      // Update the blocker service with new list
+      try {
+        print('Updating blocker service with apps: $blockedApps');
+        await PlatformService.startBlockerService(blockedApps);
+      } catch (e) {
+        print('Error updating blocker service: $e');
+      }
 
-        // Start tracking this app session in the native layer
-        final sessionDuration = selectedMinutes.value * 60;
-        print(
-            'Starting app session for $lockedPackageName with duration: $sessionDuration seconds');
-        await PlatformService.startAppSession(
+      // Launch the app with timer using Android's timer system
+      final sessionDuration = selectedMinutes.value * 60;
+      print(
+          'Launching app $lockedPackageName with timer for $sessionDuration seconds');
+
+      try {
+        // Use the pause channel since we're in PauseActivity
+        await PlatformService.launchAppWithTimerViaPause(
             lockedPackageName!, sessionDuration);
-
-        // Launch the app
-        print('Launching app: $lockedPackageName');
-        try {
-          //await PlatformService.launchApp(lockedPackageName!);
-          await const MethodChannel(
-            'com.detach.app/pause',
-          ).invokeMethod('launchApp', {'packageName': lockedPackageName});
-          print('App launch successful');
-        } catch (e) {
-          print('App launch failed: $e');
-          // Show error to user
-          Get.snackbar(
-            'Launch Error',
-            'Could not open app. Error: ${e.toString()}',
-            backgroundColor: Colors.red,
-            colorText: Colors.white,
-            duration: const Duration(seconds: 5),
-          );
-          return; // Don't proceed with timer if app launch failed
-        }
-
-        // Wait a bit for the app to start, then close the pause screen
-        await Future.delayed(const Duration(milliseconds: 1500));
-
+        print('App launch with timer successful');
         Get.back();
-      }
-      // Start the countdown timer
-      timer = Timer.periodic(const Duration(seconds: 1), (t) async {
-        elapsedSeconds.value++;
-        if (elapsedSeconds.value % 60 == 0) {
-          HapticFeedback.mediumImpact();
-        }
-        if (elapsedSeconds.value >= countdownSeconds.value) {
-          timer?.cancel();
 
-          _handleTimeUp();
-        }
-        progressController.value =
-            elapsedSeconds.value / countdownSeconds.value;
-      });
-      // Log analytics
-      await AnalyticsService.to.logPauseSession(selectedMinutes.value);
-    } catch (e, stackTrace) {}
+        // Log analytics
+        await AnalyticsService.to.logPauseSession(selectedMinutes.value);
+      } catch (e) {
+        print('App launch with timer failed: $e');
+        // Show error to user
+        Get.snackbar(
+          'Launch Error',
+          'Could not open app. Error: ${e.toString()}',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 5),
+        );
+
+        // Re-add the app to blocked list since launch failed
+        blockedApps.add(lockedPackageName!);
+        await prefs.setStringList("blocked_apps", blockedApps);
+        await PlatformService.startBlockerService(blockedApps);
+      }
+    } catch (e, stackTrace) {
+      print('Error in startCountdown: $e');
+      print('Stack trace: $stackTrace');
+    }
   }
 
   void _handleTimeUp() async {
-    try {
-      if (lockedPackageName != null) {
-        // Add the app back to blocked list
-        final prefs = await SharedPreferences.getInstance();
-        final blockedApps = prefs.getStringList("blocked_apps")?.toList() ?? [];
-
-        if (!blockedApps.contains(lockedPackageName)) {
-          blockedApps.add(lockedPackageName!);
-          await prefs.setStringList("blocked_apps", blockedApps);
-
-          // Update the blocker service with new list
-          try {
-            await PlatformService.startBlockerService(blockedApps);
-          } catch (e) {}
-        }
-
-        // Clear the session data since time is up
-        if (_currentSessionKey != null) {
-          await prefs.remove(_currentSessionKey!);
-          await prefs.remove('${_currentSessionKey!}_duration');
-        }
-
-        // Close both apps and return to pause view
-        await PlatformService.closeBothApps();
-        // Reset states
-        showTimer.value = false;
-        showCountdown.value = false;
-        showButtons.value = true;
-        // Update attempts count
-        attemptsToday.value = await AppCountService.getAppCount(
-          lockedPackageName!,
-        );
-        // Log analytics
-        AnalyticsService.to.logPauseSessionCompleted(countdownSeconds.value);
-      }
-    } catch (e, stackTrace) {}
+    // This method is no longer needed since the timer runs on Android
+    // The Android service handles timer expiration and shows the pause screen
+    print('_handleTimeUp called - this should not happen with Android timer');
   }
 
   void openApp() async {
@@ -294,7 +231,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   void continueApp() async {
     AnalyticsService.to.logPauseSessionInterrupted();
     showTimer.value = true;
-    elapsedSeconds.value = 0;
+    // Timer variables removed - timer now runs on Android
     progressController.value = 0;
   }
 
@@ -316,6 +253,14 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
         Get.offAllNamed(AppRoutes.home);
       });
       return;
+    }
+
+    // Check if this is a timer expiration case
+    final timerExpired = Get.parameters['timer_expired'] == 'true';
+    if (timerExpired) {
+      print('Timer expired - showing pause view instead of timer view');
+      showTimer.value = false;
+      showButtons.value = true;
     }
 
     // Check if this app was closed early in a previous session
@@ -373,27 +318,28 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   void startTimer() {
     timerStarted.value = true;
     AnalyticsService.to.logPauseSession(start.value);
-    timer = Timer.periodic(const Duration(seconds: 1), (t) async {
-      if (start.value == 0) {
-        t.cancel();
-        AnalyticsService.to.logPauseSessionCompleted(60);
-        await PlatformService.closeBothApps();
-        if (lockedPackageName != null) {
-          Future.delayed(const Duration(milliseconds: 500), () async {
-            await PlatformService.launchApp(lockedPackageName!);
-          });
-        }
-      } else {
-        start.value--;
-      }
-    });
+    // Timer variables removed - timer now runs on Android
+    // timer = Timer.periodic(const Duration(seconds: 1), (t) async {
+    //   if (start.value == 0) {
+    //     t.cancel();
+    //     AnalyticsService.to.logPauseSessionCompleted(60);
+    //     await PlatformService.closeBothApps();
+    //     if (lockedPackageName != null) {
+    //       Future.delayed(const Duration(milliseconds: 500), () async {
+    //         await PlatformService.launchApp(lockedPackageName!);
+    //       });
+    //     }
+    //   } else {
+    //     start.value--;
+    //   }
+    // });
   }
 
   @override
   void onClose() {
     waterController.dispose();
     progressController.dispose();
-    timer?.cancel();
+    // timer?.cancel();
     super.onClose();
   }
 }

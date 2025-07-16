@@ -212,6 +212,26 @@ class MainActivity : FlutterActivity() {
                     }
                     result.success(null)
                 }
+                "launchAppWithTimer" -> {
+                    val packageName = call.argument<String>("packageName")
+                    val durationSeconds = call.argument<Int>("durationSeconds")
+                    
+                    if (packageName != null && durationSeconds != null) {
+                        Log.d(TAG, "Launching app $packageName with timer for $durationSeconds seconds")
+                        
+                        // Send to AppLaunchInterceptor to handle timer and launch
+                        val launchIntent = Intent(this, AppLaunchInterceptor::class.java).apply {
+                            action = "com.example.detach.LAUNCH_APP_WITH_TIMER"
+                            putExtra("packageName", packageName)
+                            putExtra("durationSeconds", durationSeconds)
+                        }
+                        startService(launchIntent)
+                        
+                        result.success(true)
+                    } else {
+                        result.error("INVALID_ARG", "Package name or duration is null", null)
+                    }
+                }
                 "notifyAppBlocked" -> {
                     val packageName = call.argument<String>("packageName")
                     if (packageName != null) {

@@ -12,6 +12,8 @@ import android.os.Handler
 import android.os.Looper
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import android.app.Activity
+import com.detach.app.MainActivity
 
 class AppLaunchInterceptor : Service() {
     private val TAG = "AppLaunchInterceptor"
@@ -26,12 +28,15 @@ class AppLaunchInterceptor : Service() {
     private val earlyClosedApps = mutableMapOf<String, Long>()
     private val recentlyBlockedApps = mutableMapOf<String, Long>()
     private val blockCooldownMillis = 3000L // 3 seconds after blocking to not show pause
-    // private val earlyCloseCooldownMillis = 1000L // 1 second cooldown after early close to prevent rapid re-triggering
+
+    // Timer management for app sessions
+    private val timerRunnables = mutableMapOf<String, Runnable>()
 
     // Session tracking for timer-based app usage
     private data class AppSession(
         val startTime: Long,
-        val durationSeconds: Int
+        val durationSeconds: Int,
+        val packageName: String
     )
 
     private val appSessions = mutableMapOf<String, AppSession>()
@@ -44,51 +49,109 @@ class AppLaunchInterceptor : Service() {
 
     private val resetBlockReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == "com.example.detach.RESET_APP_BLOCK") {
-                val packageName = intent.getStringExtra("package_name")
-                if (packageName != null) {
-                    permanentlyBlockedApps.remove(packageName)
-                    // Add to unblocked apps with current timestamp
-                    unblockedApps[packageName] = System.currentTimeMillis()
-                    
-                    // Actually remove from blocked apps in SharedPreferences
-                    val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
-                    val blockedApps = prefs.getStringSet("blocked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
-                    blockedApps.remove(packageName)
-                    prefs.edit().putStringSet("blocked_apps", blockedApps).apply()
+            when (intent?.action) {
+                "com.example.detach.RESET_APP_BLOCK" -> {
+                    val packageName = intent.getStringExtra("package_name")
+                    if (packageName != null) {
+                        permanentlyBlockedApps.remove(packageName)
+                        unblockedApps[packageName] = System.currentTimeMillis()
+                        
+                        val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+                        val blockedApps = prefs.getStringSet("blocked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+                        blockedApps.remove(packageName)
+                        prefs.edit().putStringSet("blocked_apps", blockedApps).apply()
+                    }
                 }
-            } else if (intent?.action == "com.example.detach.PERMANENTLY_BLOCK_APP") {
-                val packageName = intent.getStringExtra("package_name")
-                if (packageName != null) {
-                    permanentlyBlockedApps.add(packageName)
-
+                "com.example.detach.PERMANENTLY_BLOCK_APP" -> {
+                    val packageName = intent.getStringExtra("package_name")
+                    if (packageName != null) {
+                        permanentlyBlockedApps.add(packageName)
+                    }
                 }
-            } else if (intent?.action == "com.example.detach.RESET_PAUSE_FLAG") {
-                val packageName = intent.getStringExtra("package_name")
-                if (packageName != null && currentlyPausedApp == packageName) {
-                    currentlyPausedApp = null
-
+                "com.example.detach.RESET_PAUSE_FLAG" -> {
+                    val packageName = intent.getStringExtra("package_name")
+                    if (packageName != null && currentlyPausedApp == packageName) {
+                        currentlyPausedApp = null
+                    }
                 }
-            } else if (intent?.action == "com.example.detach.START_APP_SESSION") {
-                val packageName = intent.getStringExtra("package_name")
-                val durationSeconds = intent.getIntExtra("duration_seconds", 0)
-                if (packageName != null && durationSeconds > 0) {
-                    // Start tracking this app session
-                    startAppSession(packageName, durationSeconds)
-                } else {
+                "com.example.detach.START_APP_SESSION" -> {
+                    val packageName = intent.getStringExtra("package_name")
+                    val durationSeconds = intent.getIntExtra("duration_seconds", 0)
+                    if (packageName != null && durationSeconds > 0) {
+                        startAppSession(packageName, durationSeconds)
+                    }
                 }
-            } else if (intent?.action == "com.example.detach.APP_BLOCKED") {
-                val packageName = intent.getStringExtra("package_name")
-                if (packageName != null) {
-                    // Track when app was blocked to prevent immediate pause screen
-                    recentlyBlockedApps[packageName] = System.currentTimeMillis()
-                    android.util.Log.d(TAG, "App $packageName was blocked, adding to recently blocked list")
+                "com.example.detach.APP_BLOCKED" -> {
+                    val packageName = intent.getStringExtra("package_name")
+                    if (packageName != null) {
+                        recentlyBlockedApps[packageName] = System.currentTimeMillis()
+                        android.util.Log.d(TAG, "App $packageName was blocked, adding to recently blocked list")
+                    }
+                }
+                "com.example.detach.LAUNCH_APP_WITH_TIMER" -> {
+                    val packageName = intent.getStringExtra("package_name")
+                    val durationSeconds = intent.getIntExtra("duration_seconds", 0)
+                    android.util.Log.d(TAG, "=== Received LAUNCH_APP_WITH_TIMER broadcast ===")
+                    android.util.Log.d(TAG, "Package: $packageName, Duration: $durationSeconds")
+                    if (packageName != null && durationSeconds > 0) {
+                        android.util.Log.d(TAG, "Calling launchAppWithTimer...")
+                        launchAppWithTimer(packageName, durationSeconds)
+                    } else {
+                        android.util.Log.e(TAG, "Invalid parameters: packageName=$packageName, durationSeconds=$durationSeconds")
+                    }
                 }
             }
         }
     }
 
+    private fun launchAppWithTimer(packageName: String, durationSeconds: Int) {
+        android.util.Log.d(TAG, "=== launchAppWithTimer called ===")
+        android.util.Log.d(TAG, "Package: $packageName, Duration: $durationSeconds seconds")
+        
+        try {
+            // Start the timer first
+            android.util.Log.d(TAG, "Starting app session...")
+            startAppSession(packageName, durationSeconds)
+            
+            // Launch the app
+            android.util.Log.d(TAG, "Attempting to launch app: $packageName")
+            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+            
+            if (launchIntent != null) {
+                android.util.Log.d(TAG, "Launch intent created successfully")
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                
+                android.util.Log.d(TAG, "Starting activity with intent: $launchIntent")
+                startActivity(launchIntent)
+                android.util.Log.d(TAG, "Activity startActivity() called successfully")
+            } else {
+                android.util.Log.e(TAG, "Launch intent is null for package: $packageName")
+                // Try alternative method
+                try {
+                    val intent = Intent(Intent.ACTION_MAIN)
+                    intent.addCategory(Intent.CATEGORY_LAUNCHER)
+                    intent.setPackage(packageName)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    startActivity(intent)
+                    android.util.Log.d(TAG, "Alternative launch method successful")
+                } catch (e: Exception) {
+                    android.util.Log.e(TAG, "Alternative launch method also failed: ${e.message}", e)
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error in launchAppWithTimer: ${e.message}", e)
+        }
+        
+        android.util.Log.d(TAG, "=== launchAppWithTimer completed ===")
+    }
+
     private fun startAppSession(packageName: String, durationSeconds: Int) {
+        android.util.Log.d(TAG, "Starting app session for $packageName with duration: $durationSeconds seconds")
+
+        // Cancel any existing timer for this app
+        stopTimerForApp(packageName)
 
         // Save session data in shared preferences for persistence across app restarts
         val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
@@ -96,33 +159,127 @@ class AppLaunchInterceptor : Service() {
         val sessionStartKey = "${APP_SESSION_PREFIX}${packageName}_start"
         val sessionDurationKey = "${APP_SESSION_PREFIX}${packageName}_duration"
 
-
         // Save in memory
-        appSessions[packageName] = AppSession(startTime, durationSeconds)
+        appSessions[packageName] = AppSession(startTime, durationSeconds, packageName)
 
         // Save in shared preferences for persistence
         val editor = prefs.edit()
         editor.putString(sessionStartKey, startTime.toString())
         editor.putInt(sessionDurationKey, durationSeconds)
-        val success = editor.commit() // Use commit() instead of apply() for immediate persistence
+        val success = editor.commit()
 
+        android.util.Log.d(TAG, "Session data saved: startTime=$startTime, duration=$durationSeconds, success=$success")
 
-        // Verify the save worked
-        val savedStartTime = prefs.getString(sessionStartKey, null)
-        val savedDuration = prefs.getInt(sessionDurationKey, -1)
+        // Start the timer
+        startTimerForApp(packageName, durationSeconds)
+    }
 
+    private fun startTimerForApp(packageName: String, durationSeconds: Int) {
+        android.util.Log.d(TAG, "=== startTimerForApp called for $packageName ===")
+        
+        val timerRunnable = object : Runnable {
+            override fun run() {
+                val session = appSessions[packageName]
+                if (session != null) {
+                    val currentTime = System.currentTimeMillis()
+                    val elapsedSeconds = (currentTime - session.startTime) / 1000
+                    val remainingSeconds = session.durationSeconds - elapsedSeconds
+
+                    android.util.Log.d(TAG, "Timer check for $packageName: elapsed=$elapsedSeconds, remaining=$remainingSeconds, total=$durationSeconds")
+
+                    if (remainingSeconds <= 0) {
+                        // Timer expired - handle session end
+                        android.util.Log.d(TAG, "Timer expired for $packageName")
+                        handleSessionEnd(packageName)
+                    } else {
+                        // Continue timer
+                        handler.postDelayed(this, 1000)
+                    }
+                } else {
+                    android.util.Log.d(TAG, "No active session found for $packageName, stopping timer")
+                }
+            }
+        }
+
+        timerRunnables[packageName] = timerRunnable
+        handler.postDelayed(timerRunnable, 1000)
+        
+        android.util.Log.d(TAG, "Timer started for $packageName with duration: $durationSeconds seconds")
+    }
+
+    private fun stopTimerForApp(packageName: String) {
+        val runnable = timerRunnables[packageName]
+        if (runnable != null) {
+            handler.removeCallbacks(runnable)
+            timerRunnables.remove(packageName)
+            android.util.Log.d(TAG, "Timer stopped for $packageName")
+        }
+    }
+
+    private fun handleSessionEnd(packageName: String) {
+        android.util.Log.d(TAG, "=== handleSessionEnd called for $packageName ===")
+        
+        // Stop the timer
+        stopTimerForApp(packageName)
+        
+        // Add the app back to blocked list
+        val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+        val blockedApps = prefs.getStringSet("blocked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+        
+        if (!blockedApps.contains(packageName)) {
+            blockedApps.add(packageName)
+            prefs.edit().putStringSet("blocked_apps", blockedApps).apply()
+            android.util.Log.d(TAG, "Added $packageName back to blocked apps after timer expiration")
+        }
+
+        // Clear session data
+        val sessionStartKey = "${APP_SESSION_PREFIX}${packageName}_start"
+        val sessionDurationKey = "${APP_SESSION_PREFIX}${packageName}_duration"
+        prefs.edit()
+            .remove(sessionStartKey)
+            .remove(sessionDurationKey)
+            .apply()
+        
+        appSessions.remove(packageName)
+        android.util.Log.d(TAG, "Session data cleared for $packageName")
+
+        // Close the target app and show pause screen
+        try {
+            android.util.Log.d(TAG, "Force stopping app: $packageName")
+            // Force stop the target app
+            val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            am.killBackgroundProcesses(packageName)
+            
+            // Small delay to ensure app is closed
+            handler.postDelayed({
+                // Show pause screen
+                handler.post {
+                    try {
+                        android.util.Log.d(TAG, "Launching pause screen after timer expiration for $packageName")
+                        val pauseIntent = Intent(this, PauseActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            putExtra("blocked_app_package", packageName)
+                            putExtra("show_lock", true)
+                            putExtra("timer_expired", true)
+                        }
+                        startActivity(pauseIntent)
+                        android.util.Log.d(TAG, "Pause screen launched successfully after timer expiration")
+                    } catch (e: Exception) {
+                        android.util.Log.e(TAG, "Error launching pause screen: ${e.message}", e)
+                    }
+                }
+            }, 1000) // 1 second delay
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error handling session end: ${e.message}", e)
+        }
     }
 
     private fun checkAndHandleEarlyAppClose(packageName: String) {
 
-        // Check if this app has an active session
+
         val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
         val sessionStartKey = "${APP_SESSION_PREFIX}${packageName}_start"
         val sessionDurationKey = "${APP_SESSION_PREFIX}${packageName}_duration"
-
-
-        // Check all keys in SharedPreferences to debug
-        val allKeys = prefs.all
 
         val startTimeStr = prefs.getString(sessionStartKey, null)
 
@@ -132,36 +289,46 @@ class AppLaunchInterceptor : Service() {
             val currentTime = System.currentTimeMillis()
             val elapsedSeconds = (currentTime - startTime) / 1000
 
+            android.util.Log.d(TAG, "Session check: elapsed=$elapsedSeconds, duration=$durationSeconds")
 
-            // If app was closed before timer finished
-            if (elapsedSeconds < durationSeconds) {
-
+            // Only consider it early close if more than 5 seconds have passed but less than the full duration
+            if (elapsedSeconds > 5 && elapsedSeconds < durationSeconds) {
+                android.util.Log.d(TAG, "App $packageName closed early - re-blocking")
+                
                 // Add back to blocked apps
-                val blockedApps = prefs.getStringSet("blocked_apps", mutableSetOf())?.toMutableSet()
-                    ?: mutableSetOf()
-
+                val blockedApps = prefs.getStringSet("blocked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
                 if (!blockedApps.contains(packageName)) {
                     blockedApps.add(packageName)
                     prefs.edit().putStringSet("blocked_apps", blockedApps).apply()
-                } else {
+                    android.util.Log.d(TAG, "Added $packageName back to blocked apps")
                 }
 
-                // Add to early closed apps list for cooldown management - removed
-                // earlyClosedApps[packageName] = System.currentTimeMillis()
+                // Stop the timer since app was closed
+                stopTimerForApp(packageName)
+                
+                // Clear the session data only for actual early close
+                prefs.edit()
+                    .remove(sessionStartKey)
+                    .remove(sessionDurationKey)
+                    .apply()
+                appSessions.remove(packageName)
+                android.util.Log.d(TAG, "Session data cleared for $packageName (early close)")
+            } else if (elapsedSeconds >= durationSeconds) {
+                android.util.Log.d(TAG, "App $packageName closed after timer finished - normal behavior")
+                // Clear session data for normal completion
+                prefs.edit()
+                    .remove(sessionStartKey)
+                    .remove(sessionDurationKey)
+                    .apply()
+                appSessions.remove(packageName)
+                android.util.Log.d(TAG, "Session data cleared for $packageName (normal completion)")
             } else {
+                android.util.Log.d(TAG, "App $packageName closed too quickly (${elapsedSeconds}s) - ignoring as false positive, keeping session active")
+                // Don't clear session data for false positives - let timer continue
             }
-
-            // Clear the session data
-            prefs.edit()
-                .remove(sessionStartKey)
-                .remove(sessionDurationKey)
-                .apply()
-
-            // Also remove from memory
-            appSessions.remove(packageName)
         } else {
+            android.util.Log.d(TAG, "No active session found for $packageName")
         }
-
     }
 
     override fun onCreate() {
@@ -170,13 +337,14 @@ class AppLaunchInterceptor : Service() {
         usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         handler = Handler(Looper.getMainLooper())
 
-        // Register broadcast receiver for reset block and permanent block
+        // Register broadcast receiver for all actions
         val filter = IntentFilter().apply {
             addAction("com.example.detach.RESET_APP_BLOCK")
             addAction("com.example.detach.PERMANENTLY_BLOCK_APP")
             addAction("com.example.detach.RESET_PAUSE_FLAG")
             addAction("com.example.detach.START_APP_SESSION")
             addAction("com.example.detach.APP_BLOCKED")
+            addAction("com.example.detach.LAUNCH_APP_WITH_TIMER")
         }
         registerReceiver(resetBlockReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
 
@@ -184,12 +352,11 @@ class AppLaunchInterceptor : Service() {
     }
 
     private fun startMonitoring() {
-
         Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate({
             try {
                 monitorAppUsage()
             } catch (e: Exception) {
-
+                android.util.Log.e(TAG, "Error in monitoring: ${e.message}", e)
             }
         }, 0, 10, TimeUnit.MILLISECONDS)
     }
@@ -206,7 +373,6 @@ class AppLaunchInterceptor : Service() {
                 android.util.Log.d(TAG, "App moved to foreground: $packageName, lastForegroundApp: $lastForegroundApp")
                 if (packageName != null) {
                     if (packageName == "com.detach.app") {
-                        // Update lastForegroundApp when Detach comes to foreground
                         lastForegroundApp = packageName
                     } else {
                         handleAppLaunch(packageName)
@@ -214,7 +380,6 @@ class AppLaunchInterceptor : Service() {
                     }
                 }
             }
-            // Detect when an allowed app leaves the foreground
             if (event.eventType == UsageEvents.Event.MOVE_TO_BACKGROUND) {
                 val packageName = event.packageName
                 if (packageName != null && packageName != "com.detach.app") {
@@ -239,7 +404,7 @@ class AppLaunchInterceptor : Service() {
             }
         }
 
-        // Check if app was recently blocked (within the last 3 seconds)
+        // Check if app was recently blocked
         val recentBlockTime = recentlyBlockedApps[packageName]
         if (recentBlockTime != null) {
             val currentTime = System.currentTimeMillis()
@@ -251,8 +416,7 @@ class AppLaunchInterceptor : Service() {
             }
         }
 
-        // Check if Detach was the last foreground app - if so, don't show pause screen immediately
-        // This prevents showing pause when user is blocking apps from within Detach
+        // Check if Detach was the last foreground app
         if (lastForegroundApp == "com.detach.app") {
             android.util.Log.d(TAG, "Detach was last foreground app, not showing pause for $packageName")
             return
@@ -265,18 +429,14 @@ class AppLaunchInterceptor : Service() {
             android.util.Log.d(TAG, "App $packageName has active session, not showing pause screen")
             return
         }
+
         val blockedApps = prefs.getStringSet("blocked_apps", null)
         android.util.Log.d(TAG, "Checking if $packageName is blocked. Blocked apps: $blockedApps")
 
-        // Only show pause if not already showing for this app and not in cooldown
         if (blockedApps != null && blockedApps.contains(packageName)) {
             android.util.Log.d(TAG, "App $packageName is blocked, showing pause screen")
 
-            // Reset currentlyPausedApp if it's been more than 10 seconds since last pause
-            // This allows the pause screen to show again for the same app after a reasonable delay
             if (currentlyPausedApp == packageName) {
-                // For now, let's allow showing the pause screen again immediately
-                // This will help with the issue where the pause screen doesn't show
                 currentlyPausedApp = null
             }
             currentlyPausedApp = packageName
@@ -290,62 +450,83 @@ class AppLaunchInterceptor : Service() {
                     }
                     startActivity(pauseIntent)
                 } catch (e: Exception) {
-                    // Reset the flag if there was an error launching the pause screen
                     currentlyPausedApp = null
+                    android.util.Log.e(TAG, "Error launching pause screen: ${e.message}", e)
                 }
             }
         } else {
             android.util.Log.d(TAG, "App $packageName is NOT blocked or blockedApps is null")
         }
-
     }
 
-
-
     private fun handleAppBackgrounded(packageName: String) {
+        android.util.Log.d(TAG, "=== handleAppBackgrounded called for $packageName ===")
 
         // If the app was temporarily unblocked, re-block it immediately
         if (unblockedApps.containsKey(packageName)) {
             unblockedApps.remove(packageName)
-            // Add back to blocked apps in SharedPreferences
             val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
-            val blockedApps =
-                prefs.getStringSet("blocked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+            val blockedApps = prefs.getStringSet("blocked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
             blockedApps.add(packageName)
             prefs.edit().putStringSet("blocked_apps", blockedApps).apply()
-        } else {
+            android.util.Log.d(TAG, "Re-blocked temporarily unblocked app: $packageName")
         }
 
         // Check if this app has an active session and was closed early
-        checkAndHandleEarlyAppClose(packageName)
-
+        // Add a small delay to prevent false early close detection
+        handler.postDelayed({
+            checkAndHandleEarlyAppClose(packageName)
+        }, 2000) // 2 second delay to allow for normal app switching
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-
+        android.util.Log.d(TAG, "=== onStartCommand called ===")
+        android.util.Log.d(TAG, "Intent: $intent")
+        android.util.Log.d(TAG, "Action: ${intent?.action}")
+        
         if (intent != null) {
             val action = intent.action
-
-            if (action == "com.example.detach.START_APP_SESSION") {
-                val packageName = intent.getStringExtra("package_name")
-                val durationSeconds = intent.getIntExtra("duration_seconds", 0)
-                
-                if (packageName != null && durationSeconds > 0) {
-                    startAppSession(packageName, durationSeconds)
+            when (action) {
+                "com.example.detach.START_APP_SESSION" -> {
+                    val packageName = intent.getStringExtra("package_name")
+                    val durationSeconds = intent.getIntExtra("duration_seconds", 0)
+                    android.util.Log.d(TAG, "Handling START_APP_SESSION: package=$packageName, duration=$durationSeconds")
+                    if (packageName != null && durationSeconds > 0) {
+                        startAppSession(packageName, durationSeconds)
+                    }
+                }
+                "com.example.detach.LAUNCH_APP_WITH_TIMER" -> {
+                    val packageName = intent.getStringExtra("package_name")
+                    val durationSeconds = intent.getIntExtra("duration_seconds", 0)
+                    android.util.Log.d(TAG, "Handling LAUNCH_APP_WITH_TIMER: package=$packageName, duration=$durationSeconds")
+                    if (packageName != null && durationSeconds > 0) {
+                        launchAppWithTimer(packageName, durationSeconds)
+                    }
+                }
+                else -> {
+                    android.util.Log.d(TAG, "Unknown action: $action")
                 }
             }
+        } else {
+            android.util.Log.d(TAG, "Intent is null")
         }
-
+        
+        android.util.Log.d(TAG, "=== onStartCommand completed ===")
         return START_STICKY
     }
     
     override fun onDestroy() {
         super.onDestroy()
+        
+        // Stop all active timers
+        timerRunnables.keys.forEach { packageName ->
+            stopTimerForApp(packageName)
+        }
 
         try {
             unregisterReceiver(resetBlockReceiver)
         } catch (e: Exception) {
-
+            android.util.Log.e(TAG, "Error unregistering receiver: ${e.message}", e)
         }
         currentlyPausedApp = null
     }

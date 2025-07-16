@@ -52,7 +52,12 @@ class PauseActivity : FlutterActivity() {
         startTime = intent.getLongExtra("startTime", 0)
         duration = intent.getLongExtra("duration", 0)
 
-        if (sessionKey != null && startTime > 0 && duration > 0) {
+        // Check if this is a timer expiration case
+        val timerExpired = intent.getBooleanExtra("timer_expired", false)
+        if (timerExpired) {
+            Log.d(TAG, "PauseActivity opened due to timer expiration")
+            // Don't start a new timer, just show the pause screen
+        } else if (sessionKey != null && startTime > 0 && duration > 0) {
             saveSessionData()
             startTimer()
         }
@@ -234,6 +239,35 @@ class PauseActivity : FlutterActivity() {
                     }
                 }
 
+                "launchAppWithTimer" -> {
+                    val packageName = call.argument<String>("packageName")
+                    val durationSeconds = call.argument<Int>("durationSeconds")
+                    
+                    if (packageName != null && durationSeconds != null) {
+                        Log.d(TAG, "=== PauseActivity: launchAppWithTimer called ===")
+                        Log.d(TAG, "Package: $packageName, Duration: $durationSeconds")
+                        
+                        // Ensure the AppLaunchInterceptor service is running
+                        val serviceIntent = Intent(this, AppLaunchInterceptor::class.java)
+                        startService(serviceIntent)
+                        Log.d(TAG, "AppLaunchInterceptor service started")
+                        
+                        // Send to AppLaunchInterceptor to handle timer and launch
+                        val launchIntent = Intent(this, AppLaunchInterceptor::class.java).apply {
+                            action = "com.example.detach.LAUNCH_APP_WITH_TIMER"
+                            putExtra("package_name", packageName)  // Changed from "packageName"
+                            putExtra("duration_seconds", durationSeconds)  // Changed from "durationSeconds"
+                        }
+                        startService(launchIntent)
+                        Log.d(TAG, "Launch intent sent to AppLaunchInterceptor with extras: package_name=$packageName, duration_seconds=$durationSeconds")
+                        
+                        result.success(true)
+                    } else {
+                        Log.e(TAG, "Invalid parameters: packageName=$packageName, durationSeconds=$durationSeconds")
+                        result.error("INVALID_ARG", "Package name or duration is null", null)
+                    }
+                }
+
                 else -> result.notImplemented()
             }
         }
@@ -241,6 +275,12 @@ class PauseActivity : FlutterActivity() {
 
     override fun getInitialRoute(): String {
         val packageName = intent.getStringExtra("blocked_app_package") ?: "unknown"
-        return "/pause?package=$packageName"
+        val timerExpired = intent.getBooleanExtra("timer_expired", false)
+        
+        return if (timerExpired) {
+            "/pause?package=$packageName&timer_expired=true"
+        } else {
+            "/pause?package=$packageName"
+        }
     }
 }

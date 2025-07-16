@@ -47,6 +47,36 @@ class PlatformService {
     } catch (e) {}
   }
 
+  /// Launch an app with a timer that runs on Android
+  static Future<void> launchAppWithTimer(
+      String packageName, int durationSeconds) async {
+    try {
+      await _channel.invokeMethod('launchAppWithTimer', {
+        'packageName': packageName,
+        'durationSeconds': durationSeconds,
+      });
+    } catch (e) {
+      print('Error launching app with timer $packageName: $e');
+      rethrow;
+    }
+  }
+
+  /// Launch an app with a timer using the pause channel (when app opens directly to PauseActivity)
+  static Future<void> launchAppWithTimerViaPause(
+      String packageName, int durationSeconds) async {
+    try {
+      await const MethodChannel('com.detach.app/pause')
+          .invokeMethod('launchAppWithTimer', {
+        'packageName': packageName,
+        'durationSeconds': durationSeconds,
+      });
+    } catch (e) {
+      print(
+          'Error launching app with timer via pause channel $packageName: $e');
+      rethrow;
+    }
+  }
+
   static Future<void> launchApp(String packageName) async {
     try {
       await _channel.invokeMethod('launchApp', {'packageName': packageName});
