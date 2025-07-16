@@ -53,83 +53,142 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   // Check if an app was closed early and handle accordingly
   Future<void> checkEarlyClose(String packageName) async {
     try {
+      print('=== checkEarlyClose called for $packageName ===');
+
       final prefs = await SharedPreferences.getInstance();
-      final sessionKey = 'app_session_$packageName';
+      final sessionStartKey = 'app_session_${packageName}_start';
+      final sessionDurationKey = 'app_session_${packageName}_duration';
+
+      print('Looking for session keys: $sessionStartKey, $sessionDurationKey');
+      print('Contains sessionStartKey: ${prefs.containsKey(sessionStartKey)}');
 
       // Check if we have a saved session
-      if (prefs.containsKey(sessionKey)) {
-        final startTimeStr = prefs.getString(sessionKey);
-        final totalDuration = prefs.getInt('${sessionKey}_duration') ?? 0;
+      if (prefs.containsKey(sessionStartKey)) {
+        final startTimeStr = prefs.getString(sessionStartKey);
+        final totalDuration = prefs.getInt(sessionDurationKey) ?? 0;
+
+        print('Found startTimeStr: $startTimeStr');
+        print('Total duration: $totalDuration');
 
         if (startTimeStr != null) {
-          final startTime = DateTime.parse(startTimeStr);
+          final startTimeMillis = int.tryParse(startTimeStr) ?? 0;
+          final startTime =
+              DateTime.fromMillisecondsSinceEpoch(startTimeMillis);
           final now = DateTime.now();
           final elapsedSeconds = now.difference(startTime).inSeconds;
 
+          print('Session details:');
+          print('  - Start time: $startTime');
+          print('  - Current time: $now');
+          print('  - Elapsed seconds: $elapsedSeconds');
+          print('  - Total duration: $totalDuration');
+
           // If the app was closed before the timer finished
           if (elapsedSeconds < totalDuration) {
+            print('*** APP $packageName CLOSED EARLY! RE-BLOCKING APP ***');
+
             // Add the app back to blocked list
             final blockedApps =
                 prefs.getStringList("blocked_apps")?.toList() ?? [];
+            print('Current blocked apps before adding: $blockedApps');
+
             if (!blockedApps.contains(packageName)) {
               blockedApps.add(packageName);
+              print('Added $packageName to blocked apps: $blockedApps');
               await prefs.setStringList("blocked_apps", blockedApps);
 
               // Update the blocker service with new list
               try {
                 await PlatformService.startBlockerService(blockedApps);
-              } catch (e) {}
+                print('Updated blocker service with new blocked apps list');
+              } catch (e) {
+                print('Error updating blocker service: $e');
+              }
+            } else {
+              print('$packageName was already in blocked apps list');
             }
+          } else {
+            print(
+                'App $packageName was closed after timer finished, no re-blocking needed');
           }
 
           // Clear the session data
-          await prefs.remove(sessionKey);
-          await prefs.remove('${sessionKey}_duration');
+          print('Clearing session data for $packageName');
+          await prefs.remove(sessionStartKey);
+          await prefs.remove(sessionDurationKey);
+          print('Session data cleared');
         }
+      } else {
+        print('No active session found for $packageName');
       }
+
+      print('=== checkEarlyClose completed for $packageName ===');
     } catch (e) {
-      // Handle errors
+      print('Error in checkEarlyClose: $e');
     }
   }
 
   void startCountdown() async {
     try {
+      print('=== startCountdown called ===');
+      print('lockedPackageName: $lockedPackageName');
+      print('selectedMinutes: ${selectedMinutes.value}');
+
       showCountdown.value = true;
       countdownSeconds.value = selectedMinutes.value * 60;
       elapsedSeconds.value = 0;
       progressController.duration = Duration(minutes: selectedMinutes.value);
       progressController.value = 0;
       timer?.cancel();
+
       // Reset the pause flag so the pause screen can show again for this app
       if (lockedPackageName != null) {
         try {
+          print('Resetting pause flag for $lockedPackageName');
           await PlatformService.resetPauseFlag(lockedPackageName!);
-        } catch (e) {}
+        } catch (e) {
+          print('Error resetting pause flag: $e');
+        }
       }
+
       // First remove the app from blocked list temporarily
       if (lockedPackageName != null) {
         final prefs = await SharedPreferences.getInstance();
         final blockedApps = prefs.getStringList("blocked_apps")?.toList() ?? [];
 
+        print('Current blocked apps before removing: $blockedApps');
+
         blockedApps.remove(lockedPackageName);
         await prefs.setStringList("blocked_apps", blockedApps);
+        print('Removed $lockedPackageName from blocked apps: $blockedApps');
 
         // First reset the app block to prevent immediate re-blocking
         try {
+          print('Resetting app block for $lockedPackageName');
           await PlatformService.resetAppBlock(lockedPackageName!);
-        } catch (e) {}
+        } catch (e) {
+          print('Error resetting app block: $e');
+        }
+
         // Update the blocker service with new list
         try {
+          print('Updating blocker service with apps: $blockedApps');
           await PlatformService.startBlockerService(blockedApps);
-        } catch (e) {}
+        } catch (e) {
+          print('Error updating blocker service: $e');
+        }
 
         // Start tracking this app session in the native layer
+        final sessionDuration = selectedMinutes.value * 60;
+        print(
+            'Starting app session for $lockedPackageName with duration: $sessionDuration seconds');
         await PlatformService.startAppSession(
-            lockedPackageName!, selectedMinutes.value * 60);
+            lockedPackageName!, sessionDuration);
 
         // Launch the app
         await Future.delayed(const Duration(milliseconds: 500));
 
+        print('Launching app: $lockedPackageName');
         await PlatformService.launchApp(lockedPackageName!);
         // Close the pause screen
         Get.back();
@@ -235,6 +294,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
 
     // Check if this app was closed early in a previous session
     if (lockedPackageName != null) {
+      print('Checking for early close on init for: $lockedPackageName');
       checkEarlyClose(lockedPackageName!);
     }
 
