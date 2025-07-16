@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="google_app_id" translatable="false">1:143537014188:android:74e6e858b714ea9dea2609</string>
+  <string name="gcm_defaultSenderId" translatable="false">143537014188</string>
+  <string name="google_api_key" translatable="false">AIzaSyCwfx-5FZuUk31IW4NzV5Bh7Xb6Q8nRsuc</string>
+  <string name="google_storage_bucket" translatable="false">detach-creo.firebasestorage.app</string>
+  <string name="project_id" translatable="false">detach-creo</string>
+</resources>

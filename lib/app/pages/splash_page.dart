@@ -1,53 +1,133 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:detach/services/analytics_service.dart';
 import 'package:detach/services/permission_service.dart';
+import 'package:detach/app/routes/app_routes.dart';
 
-class SplashPage extends StatelessWidget {
+class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
+  @override
+  State<SplashPage> createState() => _SplashPageState();
+}
+
+class _SplashPageState extends State<SplashPage>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1400),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(
+      begin: 0.9,
+      end: 1.05,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutExpo));
+    _fadeAnimation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
+    _controller.forward();
+    Future.delayed(const Duration(seconds: 3), () {
+      _navigateToProfile();
+    });
+  }
+
+  void _navigateToProfile() async {
+    // Log app launch
+    await AnalyticsService.to.logAppLaunch();
+    await AnalyticsService.to.logScreenView('splash');
+    // Check permissions and navigate accordingly
+    await _checkPermissionsAndNavigate();
+  }
 
   Future<void> _checkPermissionsAndNavigate() async {
-    debugPrint('SplashPage: Current route = ${Get.currentRoute}');
-
     // Don't redirect if we're already on the pause page
-    if (Get.currentRoute.startsWith('/pause')) {
-      debugPrint(
-        'SplashPage: Already on pause page, skipping permission check',
-      );
+    if (Get.currentRoute.startsWith(AppRoutes.pause)) {
       return;
     }
-
     final permissionService = PermissionService();
+    // Add delays to ensure proper permission checking
+    await Future.delayed(const Duration(milliseconds: 500));
     final hasUsage = await permissionService.hasUsagePermission();
-    final hasAccessibility =
-        await permissionService.hasAccessibilityPermission();
+
     final hasOverlay = await permissionService.hasOverlayPermission();
+
     final hasBattery = await permissionService.hasBatteryOptimizationIgnored();
 
-    debugPrint(
-      'SplashPage: Permissions check - Usage: $hasUsage, Accessibility: $hasAccessibility, Overlay: $hasOverlay, Battery: $hasBattery',
-    );
-
-    if (hasUsage && hasAccessibility && hasOverlay && hasBattery) {
-      debugPrint('SplashPage: All permissions granted, navigating to home');
-      Get.offAllNamed('/home');
+    // Log permission status
+    if (hasUsage) await AnalyticsService.to.logPermissionGranted('usage_stats');
+    if (hasOverlay) await AnalyticsService.to.logPermissionGranted('overlay');
+    if (hasBattery)
+      await AnalyticsService.to.logPermissionGranted('battery_optimization');
+    if (hasUsage && hasOverlay && hasBattery) {
+      await AnalyticsService.to.logFeatureUsage('all_permissions_granted');
+      Get.offAllNamed(AppRoutes.home); // Remove the tab parameter
     } else {
-      debugPrint(
-        'SplashPage: Missing permissions, navigating to permission page',
-      );
-      Get.offAllNamed('/permission');
+      await AnalyticsService.to.logFeatureUsage('permissions_required');
+      Get.offAllNamed(AppRoutes.permission);
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    Future.delayed(Duration.zero, _checkPermissionsAndNavigate);
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.teal.shade900,
-      body: const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-        ),
+      body: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: Opacity(
+              opacity: _fadeAnimation.value,
+              child: Container(
+                width: double.infinity,
+                height: double.infinity,
+                color: Colors.black,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.hourglass_empty_rounded,
+                        color: Colors.white,
+                        size: 80,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        "DETACH",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          letterSpacing: 4,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'monospace', // modern feel
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Take a break from digital life",
+                        style: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 14,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

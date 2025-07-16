@@ -1,11 +1,10 @@
+import 'package:figma_squircle/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:detach/app/pages/permission_handler/controller/permission_controller.dart';
-import 'package:figma_squircle/figma_squircle.dart';
 
 class PermissionBatteryView extends GetView<PermissionController> {
   const PermissionBatteryView({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -15,23 +14,54 @@ class PermissionBatteryView extends GetView<PermissionController> {
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
+            children: [
+              // Icon
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.battery_charging_full,
+                    size: 48,
+                    color: Colors.orange,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Title
+              const Text(
                 'Battery Optimization',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
               ),
-              SizedBox(height: 16),
-              Text(
-                'Detach needs to be excluded from battery optimization so it can work reliably in the background. '
-                'Please grant this permission in the settings.',
-                style: TextStyle(fontSize: 16),
+              const SizedBox(height: 16),
+              // Description
+              const Text(
+                'To work properly in the background, Detach needs to be excluded from battery optimization.',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+                textAlign: TextAlign.center,
               ),
+              const SizedBox(height: 16),
             ],
           ),
+          const SizedBox(height: 24),
+          // Button
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => controller.openBatteryOptimizationSettings(),
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.battery_charging_full),
+              label: const Text(
+                'Disable Battery Optimization',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              onPressed: () async {
+                await controller.openBatteryOptimizationSettings();
+                // Reset permission check so it will re-check when user returns
+                controller.resetPermissionCheck();
+              },
               style: ElevatedButton.styleFrom(
                 shape: SmoothRectangleBorder(
                   borderRadius: SmoothBorderRadius.all(
@@ -39,7 +69,6 @@ class PermissionBatteryView extends GetView<PermissionController> {
                   ),
                 ),
               ),
-              child: const Text('Grant battery permission'),
             ),
           ),
         ],

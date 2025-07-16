@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "143537014188",
+    "project_id": "detach-creo",
+    "storage_bucket": "detach-creo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:143537014188:android:3ba4549a7a93d4bcea2609",
+        "android_client_info": {
+          "package_name": "com.detach.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCwfx-5FZuUk31IW4NzV5Bh7Xb6Q8nRsuc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:143537014188:android:74e6e858b714ea9dea2609",
+        "android_client_info": {
+          "package_name": "com.example.detach"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCwfx-5FZuUk31IW4NzV5Bh7Xb6Q8nRsuc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

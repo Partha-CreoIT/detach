@@ -19,7 +19,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.8.0-250.0.dev
+  sdk: ">=3.2.3 <4.0.0"
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -38,9 +38,14 @@ dependencies:
   permission_handler: ^11.1.0
   installed_apps: ^1.6.0
   shared_preferences: ^2.5.3
-  wave: ^0.2.2
   package_info_plus: ^8.0.2
   figma_squircle: ^0.6.3
+
+  # Analytics dependencies
+  firebase_core: ^3.6.0
+  firebase_analytics: ^11.3.3
+  device_info_plus: ^10.1.0
+  connectivity_plus: ^6.0.1
 
 dev_dependencies:
   flutter_test:
@@ -51,7 +56,11 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^5.0.0
+  flutter_lints: ^2.0.0
+  integration_test:
+    sdk: flutter
+  path: ^1.8.3
+  patrol: ^3.5.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
