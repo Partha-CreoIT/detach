@@ -155,4 +155,15 @@ class PlatformService {
       });
     } catch (e) {}
   }
+
+  /// Test the pause screen launch
+  static Future<void> testPauseScreen(String packageName) async {
+    try {
+      await _channel.invokeMethod('testPauseScreen', {
+        'packageName': packageName,
+      });
+    } catch (e) {
+      print('Error testing pause screen: $e');
+    }
+  }
 }

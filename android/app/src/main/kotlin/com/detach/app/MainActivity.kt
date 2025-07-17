@@ -9,20 +9,24 @@ import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugins.GeneratedPluginRegistrant
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.detach.app/permissions"
     private val TAG = "MainActivity"
+    private lateinit var methodChannel: MethodChannel
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        
+        // Ensure the AppLaunchInterceptor service is running
+        startBlockerService()
+        
+        GeneratedPluginRegistrant.registerWith(FlutterEngine(this))
     }
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            CHANNEL
-        ).setMethodCallHandler { call, result ->
+        methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        methodChannel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "checkUsagePermission" -> {
                     val hasPermission = hasUsageAccess()
@@ -239,6 +243,23 @@ class MainActivity : FlutterActivity() {
                     }
                     result.success(null)
                 }
+                "testPauseScreen" -> {
+                    val packageName = call.argument<String>("packageName")
+                    if (packageName != null) {
+                        Log.d(TAG, "Testing pause screen for $packageName")
+                        
+                        // Send to AppLaunchInterceptor to test pause screen
+                        val testIntent = Intent(this, AppLaunchInterceptor::class.java).apply {
+                            action = "com.example.detach.TEST_PAUSE_SCREEN"
+                            putExtra("packageName", packageName)
+                        }
+                        startService(testIntent)
+                        
+                        result.success(true)
+                    } else {
+                        result.error("INVALID_ARG", "Package name is null", null)
+                    }
+                }
                 else -> {
                     result.notImplemented()
                 }
@@ -376,5 +397,16 @@ class MainActivity : FlutterActivity() {
         val intent = Intent("com.example.detach.APP_BLOCKED")
         intent.putExtra("package_name", packageName)
         sendBroadcast(intent)
+    }
+
+    private fun startBlockerService() {
+        try {
+            Log.d(TAG, "Starting AppLaunchInterceptor service...")
+            val serviceIntent = Intent(this, AppLaunchInterceptor::class.java)
+            startService(serviceIntent)
+            Log.d(TAG, "AppLaunchInterceptor service started")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting AppLaunchInterceptor service: ${e.message}", e)
+        }
     }
 }
