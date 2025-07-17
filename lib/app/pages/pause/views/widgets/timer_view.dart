@@ -8,6 +8,13 @@ import 'package:detach/services/theme_service.dart';
 
 class TimerView extends GetView<PauseController> {
   const TimerView({super.key});
+
+  void _minimizeAppToBackground() {
+    // Use platform channel to minimize app to background
+    const MethodChannel('com.detach.app/pause')
+        .invokeMethod('minimizeAppToBackground');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -176,6 +183,8 @@ class TimerView extends GetView<PauseController> {
                       onTap: () {
                         HapticFeedback.mediumImpact();
                         controller.startCountdown();
+                        // Minimize Detach app to background after starting timer
+                        _minimizeAppToBackground();
                       },
                       child: Center(
                         child: Row(

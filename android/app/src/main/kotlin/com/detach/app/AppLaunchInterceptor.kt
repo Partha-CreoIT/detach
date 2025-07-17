@@ -147,6 +147,19 @@ class AppLaunchInterceptor : Service() {
                 android.util.Log.d(TAG, "Starting activity with intent: $launchIntent")
                 startActivity(launchIntent)
                 android.util.Log.d(TAG, "Activity startActivity() called successfully")
+                
+                // Minimize Detach app to background after launching target app
+                handler.postDelayed({
+                    try {
+                        // Send broadcast to minimize Detach app
+                        val minimizeIntent = Intent("com.example.detach.MINIMIZE_DETACH_APP")
+                        sendBroadcast(minimizeIntent)
+                        android.util.Log.d(TAG, "Sent minimize broadcast for Detach app")
+                    } catch (e: Exception) {
+                        android.util.Log.e(TAG, "Error minimizing Detach app: ${e.message}", e)
+                    }
+                }, 500) // Small delay to ensure target app is launched first
+                
             } else {
                 android.util.Log.e(TAG, "Launch intent is null for package: $packageName")
                 // Try alternative method
@@ -157,6 +170,19 @@ class AppLaunchInterceptor : Service() {
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     startActivity(intent)
                     android.util.Log.d(TAG, "Alternative launch method successful")
+                    
+                    // Minimize Detach app to background after launching target app
+                    handler.postDelayed({
+                        try {
+                            // Send broadcast to minimize Detach app
+                            val minimizeIntent = Intent("com.example.detach.MINIMIZE_DETACH_APP")
+                            sendBroadcast(minimizeIntent)
+                            android.util.Log.d(TAG, "Sent minimize broadcast for Detach app")
+                        } catch (e: Exception) {
+                            android.util.Log.e(TAG, "Error minimizing Detach app: ${e.message}", e)
+                        }
+                    }, 500) // Small delay to ensure target app is launched first
+                    
                 } catch (e: Exception) {
                     android.util.Log.e(TAG, "Alternative launch method also failed: ${e.message}", e)
                 }
@@ -577,6 +603,25 @@ class AppLaunchInterceptor : Service() {
         }
     }
 
+    private fun showTimerStoppedNotification(packageName: String) {
+        try {
+            val notification = android.app.Notification.Builder(this, "detach_service_channel")
+                .setContentTitle("Timer Stopped")
+                .setContentText("$packageName timer stopped - app backgrounded")
+                .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                .setPriority(android.app.Notification.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .build()
+
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            notificationManager.notify(1006, notification)
+            
+            android.util.Log.d(TAG, "Timer stopped notification shown for $packageName")
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error showing timer stopped notification: ${e.message}", e)
+        }
+    }
+
     private fun confirmSessionEnd(packageName: String) {
         try {
             val notification = android.app.Notification.Builder(this, "detach_service_channel")
@@ -848,8 +893,35 @@ class AppLaunchInterceptor : Service() {
         // Check if this app has an active session
         val session = appSessions[packageName]
         if (session != null) {
-            android.util.Log.d(TAG, "App $packageName backgrounded with active session - continuing timer")
-            // Don't stop the timer, let it continue running
+            android.util.Log.d(TAG, "App $packageName backgrounded with active session - IMMEDIATELY STOPPING TIMER AND RE-BLOCKING")
+            
+            // Immediately stop the timer
+            stopTimerForApp(packageName)
+            
+            // Add the app back to blocked list immediately
+            val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+            val blockedApps = prefs.getStringSet("blocked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+            
+            if (!blockedApps.contains(packageName)) {
+                blockedApps.add(packageName)
+                prefs.edit().putStringSet("blocked_apps", blockedApps).apply()
+                android.util.Log.d(TAG, "Added $packageName back to blocked apps due to backgrounding")
+            }
+
+            // Clear session data
+            val sessionStartKey = "${APP_SESSION_PREFIX}${packageName}_start"
+            val sessionDurationKey = "${APP_SESSION_PREFIX}${packageName}_duration"
+            prefs.edit()
+                .remove(sessionStartKey)
+                .remove(sessionDurationKey)
+                .apply()
+            
+            appSessions.remove(packageName)
+            android.util.Log.d(TAG, "Session data cleared for $packageName due to backgrounding")
+
+            // Show notification about timer stopped
+            showTimerStoppedNotification(packageName)
+            
             return
         }
 

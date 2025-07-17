@@ -36,6 +36,15 @@ class PauseActivity : FlutterActivity() {
         }
     }
 
+    private val minimizeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "com.example.detach.MINIMIZE_DETACH_APP") {
+                Log.d(TAG, "Received minimize broadcast - minimizing Detach app")
+                moveTaskToBack(true)
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -53,6 +62,14 @@ class PauseActivity : FlutterActivity() {
             registerReceiver(sessionEndReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(sessionEndReceiver, filter)
+        }
+
+        // Register minimize receiver
+        val minimizeFilter = IntentFilter("com.example.detach.MINIMIZE_DETACH_APP")
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            registerReceiver(minimizeReceiver, minimizeFilter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(minimizeReceiver, minimizeFilter)
         }
 
         sessionKey = intent.getStringExtra("sessionKey")
@@ -147,6 +164,10 @@ class PauseActivity : FlutterActivity() {
 
         try {
             unregisterReceiver(sessionEndReceiver)
+        } catch (_: Exception) {}
+
+        try {
+            unregisterReceiver(minimizeReceiver)
         } catch (_: Exception) {}
 
         checkEarlyClose()
@@ -361,6 +382,19 @@ class PauseActivity : FlutterActivity() {
                     } else {
                         Log.e(TAG, "Package name is null in pauseScreenClosed")
                         result.error("INVALID_ARG", "Package name is null", null)
+                    }
+                }
+
+                "minimizeAppToBackground" -> {
+                    Log.d(TAG, "=== PauseActivity: minimizeAppToBackground called ===")
+                    try {
+                        // Minimize the app to background
+                        moveTaskToBack(true)
+                        Log.d(TAG, "App minimized to background successfully")
+                        result.success(true)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error minimizing app to background: ${e.message}", e)
+                        result.error("MINIMIZE_ERROR", "Error minimizing app: ${e.message}", null)
                     }
                 }
 
