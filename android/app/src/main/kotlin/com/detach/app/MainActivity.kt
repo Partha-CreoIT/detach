@@ -402,9 +402,30 @@ class MainActivity : FlutterActivity() {
     private fun startBlockerService() {
         try {
             Log.d(TAG, "Starting AppLaunchInterceptor service...")
+            
+            // Check if service is already running
+            val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            val runningServices = am.getRunningServices(Integer.MAX_VALUE)
+            val isServiceRunning = runningServices.any { it.service.className == "com.detach.app.AppLaunchInterceptor" }
+            
+            if (isServiceRunning) {
+                Log.d(TAG, "AppLaunchInterceptor service is already running")
+                return
+            }
+            
             val serviceIntent = Intent(this, AppLaunchInterceptor::class.java)
             startService(serviceIntent)
-            Log.d(TAG, "AppLaunchInterceptor service started")
+            
+            // Verify service started
+            Thread.sleep(100) // Small delay to allow service to start
+            val runningServicesAfter = am.getRunningServices(Integer.MAX_VALUE)
+            val isServiceRunningAfter = runningServicesAfter.any { it.service.className == "com.detach.app.AppLaunchInterceptor" }
+            
+            if (isServiceRunningAfter) {
+                Log.d(TAG, "AppLaunchInterceptor service started successfully")
+            } else {
+                Log.e(TAG, "Failed to start AppLaunchInterceptor service")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error starting AppLaunchInterceptor service: ${e.message}", e)
         }

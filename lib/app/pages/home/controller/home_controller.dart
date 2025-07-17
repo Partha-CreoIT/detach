@@ -25,6 +25,20 @@ class HomeController extends GetxController {
     _startBlockerServiceIfNeeded();
   }
 
+  @override
+  void onReady() {
+    super.onReady();
+    // Ensure service is running when app becomes active
+    _ensureServiceRunning();
+  }
+
+  Future<void> _ensureServiceRunning() async {
+    if (selectedAppPackages.isNotEmpty) {
+      await PlatformService.restartBlockerServiceIfNeeded(
+          selectedAppPackages.toList());
+    }
+  }
+
   Future<void> _loadLimitedAppsCount() async {
     final prefs = await SharedPreferences.getInstance();
     final blockedApps = prefs.getStringList("blocked_apps");
@@ -42,7 +56,19 @@ class HomeController extends GetxController {
   Future<void> _startBlockerServiceIfNeeded() async {
     // Start the blocker service if there are blocked apps
     if (selectedAppPackages.isNotEmpty) {
-      await PlatformService.startBlockerService(selectedAppPackages.toList());
+      try {
+        await PlatformService.startBlockerService(selectedAppPackages.toList());
+
+        // Verify service is running
+        final isRunning = await PlatformService.isBlockerServiceRunning();
+        if (!isRunning) {
+          print('Warning: Blocker service failed to start');
+        } else {
+          print('Blocker service is running successfully');
+        }
+      } catch (e) {
+        print('Error starting blocker service: $e');
+      }
     }
   }
 

@@ -2,6 +2,7 @@ import 'package:detach/app/routes/app_pages.dart';
 import 'package:detach/app/routes/app_routes.dart';
 import 'package:detach/services/theme_service.dart';
 import 'package:detach/services/analytics_service.dart';
+import 'package:detach/services/platform_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:detach/firebase_options.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:detach/app/pages/pause/views/pause_view.dart';
 import 'package:detach/app/pages/pause/bindings/pause_binding.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,7 +26,26 @@ void main() async {
   Get.put(AnalyticsService());
   // Initialize status bar style
   themeService.updateStatusBarStyle();
+
+  // Ensure blocker service is running if there are blocked apps
+  await _ensureBlockerServiceRunning();
+
   runApp(const DetachApp());
+}
+
+Future<void> _ensureBlockerServiceRunning() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final blockedApps = prefs.getStringList("blocked_apps") ?? [];
+
+    if (blockedApps.isNotEmpty) {
+      print(
+          'Found ${blockedApps.length} blocked apps, ensuring service is running...');
+      await PlatformService.restartBlockerServiceIfNeeded(blockedApps);
+    }
+  } catch (e) {
+    print('Error ensuring blocker service is running: $e');
+  }
 }
 
 class DetachApp extends StatelessWidget {

@@ -21,19 +21,19 @@ class AppLaunchInterceptor : Service() {
     private lateinit var handler: Handler
     private var lastEventTime = 0L
     private var serviceStartTime = 0L
-    private val startupDelayMillis = 100L // Reduced from 1000ms to 100ms for faster startup
+    private val startupDelayMillis = 500L // Increased to 500ms for more stable startup
     private val permanentlyBlockedApps = mutableSetOf<String>()
     private var isMonitoringEnabled = true
     private val unblockedApps = mutableMapOf<String, Long>()
-    private val cooldownMillis = 2000L // Reduced from 5 seconds to 2 seconds for faster response
+    private val cooldownMillis = 3000L // Increased to 3 seconds for more stable response
     private var lastForegroundApp: String? = null
     private val earlyClosedApps = mutableMapOf<String, Long>()
     private val recentlyBlockedApps = mutableMapOf<String, Long>()
-    private val blockCooldownMillis = 1000L // Reduced from 3 seconds to 1 second
-    private val pauseLaunchCooldownMillis = 1000L // Reduced from 2 seconds to 1 second
+    private val blockCooldownMillis = 2000L // Increased to 2 seconds
+    private val pauseLaunchCooldownMillis = 3000L // Increased to 3 seconds to prevent rapid launches
     private val lastPauseLaunchTime = mutableMapOf<String, Long>()
     private val lastBackgroundedTime = mutableMapOf<String, Long>()
-    private val backgroundCooldownMillis = 500L // Reduced from 1 second to 500ms
+    private val backgroundCooldownMillis = 1000L // Increased to 1 second
 
     // Timer management for app sessions
     private val timerRunnables = mutableMapOf<String, Runnable>()
@@ -46,6 +46,10 @@ class AppLaunchInterceptor : Service() {
     )
 
     private val appSessions = mutableMapOf<String, AppSession>()
+
+    // Service persistence
+    private var serviceRestartRunnable: Runnable? = null
+    private val serviceCheckInterval = 30000L // Check every 30 seconds
 
     companion object {
         var currentlyPausedApp: String? = null
@@ -85,7 +89,7 @@ class AppLaunchInterceptor : Service() {
                     val packageName = intent.getStringExtra("package_name")
                     if (packageName != null) {
                         currentlyPausedApp = null
-                        android.util.Log.d(TAG, "Pause screen closed for $packageName")
+                        android.util.Log.d(TAG, "Pause screen closed for $packageName, cleared currentlyPausedApp")
                     }
                 }
                 "com.example.detach.START_APP_SESSION" -> {
@@ -114,11 +118,20 @@ class AppLaunchInterceptor : Service() {
                         android.util.Log.e(TAG, "Invalid parameters: packageName=$packageName, durationSeconds=$durationSeconds")
                     }
                 }
-                "com.example.detach.TEST_PAUSE_SCREEN" -> {
+                "TIMER_EXPIRED" -> {
                     val packageName = intent.getStringExtra("package_name")
-                    android.util.Log.d(TAG, "=== Testing pause screen launch for $packageName ===")
+                    android.util.Log.d(TAG, "=== TIMER_EXPIRED received for $packageName ===")
                     if (packageName != null) {
-                        testPauseScreenLaunch(packageName)
+                        // Handle timer expiration via AlarmManager
+                        handleSessionEnd(packageName)
+                    }
+                }
+                "com.example.detach.TEST_PAUSE_SCREEN" -> {
+                    val packageName = intent.getStringExtra("packageName")
+                    android.util.Log.d(TAG, "Handling TEST_PAUSE_SCREEN: package=$packageName")
+                    if (packageName != null) {
+                        // Simulate app launch for testing
+                        handleAppLaunch(packageName)
                     }
                 }
             }
@@ -220,7 +233,7 @@ class AppLaunchInterceptor : Service() {
 
     private fun startTimerForApp(packageName: String, durationSeconds: Int) {
         android.util.Log.d(TAG, "=== startTimerForApp called for $packageName ===")
-        
+
         val timerRunnable = object : Runnable {
             override fun run() {
                 val session = appSessions[packageName]
@@ -693,7 +706,56 @@ class AppLaunchInterceptor : Service() {
         // Start monitoring immediately
         startMonitoring()
         
+        // Start service persistence monitoring
+        startServicePersistence()
+        
         android.util.Log.d(TAG, "Service initialization completed, ready to monitor apps")
+    }
+
+    private fun startServicePersistence() {
+        // Create a runnable that checks if the service is still running and restarts if needed
+        serviceRestartRunnable = object : Runnable {
+            override fun run() {
+                try {
+                    // Check if we have blocked apps to monitor
+                    val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+                    val blockedApps = prefs.getStringSet("blocked_apps", null)
+                    
+                    if (blockedApps != null && blockedApps.isNotEmpty()) {
+                        android.util.Log.d(TAG, "Service persistence check - monitoring ${blockedApps.size} blocked apps")
+                        
+                        // Ensure we're still a foreground service
+                        try {
+                            val notification = android.app.Notification.Builder(this@AppLaunchInterceptor, "detach_service_channel")
+                                .setContentTitle("Detach")
+                                .setContentText("Monitoring ${blockedApps.size} blocked apps")
+                                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                                .setPriority(android.app.Notification.PRIORITY_LOW)
+                                .setOngoing(true)
+                                .build()
+                            
+                            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                            notificationManager.notify(1001, notification)
+                        } catch (e: Exception) {
+                            android.util.Log.e(TAG, "Error updating notification: ${e.message}")
+                        }
+                    } else {
+                        android.util.Log.d(TAG, "No blocked apps to monitor, service can be stopped")
+                        stopSelf()
+                        return
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e(TAG, "Error in service persistence check: ${e.message}", e)
+                }
+                
+                // Schedule next check
+                handler.postDelayed(this, serviceCheckInterval)
+            }
+        }
+        
+        // Start the persistence monitoring
+        handler.postDelayed(serviceRestartRunnable!!, serviceCheckInterval)
+        android.util.Log.d(TAG, "Service persistence monitoring started")
     }
 
     private fun restoreActiveTimers() {
@@ -772,7 +834,7 @@ class AppLaunchInterceptor : Service() {
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "Error in monitoring: ${e.message}", e)
             }
-        }, 0, 100, TimeUnit.MILLISECONDS) // Increased from 10ms to 100ms to reduce frequency
+        }, 0, 200, TimeUnit.MILLISECONDS) // Reduced to 200ms for more responsive detection
     }
 
     private fun monitorAppUsage() {
@@ -989,12 +1051,17 @@ class AppLaunchInterceptor : Service() {
             stopTimerForApp(packageName)
         }
 
+        // Stop service persistence monitoring
+        serviceRestartRunnable?.let { handler.removeCallbacks(it) }
+
         try {
             unregisterReceiver(resetBlockReceiver)
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error unregistering receiver: ${e.message}", e)
         }
         currentlyPausedApp = null
+        
+        android.util.Log.d(TAG, "AppLaunchInterceptor service destroyed")
     }
     
     override fun onBind(intent: Intent?): IBinder? = null

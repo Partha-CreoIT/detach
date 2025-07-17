@@ -36,6 +36,20 @@ class PlatformService {
     } catch (e) {}
   }
 
+  /// Restart the blocker service if it's not running
+  static Future<void> restartBlockerServiceIfNeeded(
+      List<String> blockedApps) async {
+    try {
+      final isRunning = await isBlockerServiceRunning();
+      if (!isRunning && blockedApps.isNotEmpty) {
+        print('Blocker service not running, restarting...');
+        await startBlockerService(blockedApps);
+      }
+    } catch (e) {
+      print('Error restarting blocker service: $e');
+    }
+  }
+
   /// Start tracking an app session with a timer
   static Future<void> startAppSession(
       String packageName, int durationSeconds) async {
@@ -164,6 +178,25 @@ class PlatformService {
       });
     } catch (e) {
       print('Error testing pause screen: $e');
+    }
+  }
+
+  /// Test if the service can detect app launches
+  static Future<void> testServiceDetection() async {
+    try {
+      final isRunning = await isBlockerServiceRunning();
+      print('Blocker service running: $isRunning');
+
+      final blockedApps = await getBlockedApps();
+      print('Blocked apps: $blockedApps');
+
+      if (isRunning && blockedApps.isNotEmpty) {
+        print('Service should be able to detect app launches');
+      } else {
+        print('Service is not properly configured');
+      }
+    } catch (e) {
+      print('Error testing service detection: $e');
     }
   }
 }
