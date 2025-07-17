@@ -170,17 +170,66 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   @override
   void onInit() {
     super.onInit();
+    print('=== PauseController.onInit() called ===');
+    print('Get.parameters: ${Get.parameters}');
+    print('Get.rawRoute: ${Get.rawRoute}');
+    print('Get.rawRoute.toString(): ${Get.rawRoute?.toString()}');
+    print('Get.currentRoute: ${Get.currentRoute}');
+    print('Get.routing.current: ${Get.routing.current}');
+
+    // Try multiple ways to get the package name
     lockedPackageName = Get.parameters['package'];
+    if (lockedPackageName == null || lockedPackageName!.isEmpty) {
+      // Try parsing from raw route
+      final route = Get.rawRoute?.toString() ?? '';
+      final packageMatch = RegExp(r'package=([^&]+)').firstMatch(route);
+      if (packageMatch != null) {
+        lockedPackageName = packageMatch.group(1);
+        print('Extracted package name from route: $lockedPackageName');
+      }
+    }
+
+    // Set up method channel listener for timer expiration
+    const MethodChannel('com.detach.app/pause')
+        .setMethodCallHandler((call) async {
+      print('=== Method channel call received: ${call.method} ===');
+      if (call.method == 'timerExpired') {
+        print('Timer expired notification received from Android!');
+        print('Package: ${call.arguments['packageName']}');
+        print('Timer state: ${call.arguments['timerState']}');
+
+        // Handle timer expiration
+        _handleTimerExpiration();
+      } else if (call.method == 'test') {
+        print(
+            'Test method channel message received: ${call.arguments['message']}');
+      } else if (call.method == 'initializePause') {
+        print('Initialize pause notification received from Android!');
+        final packageName = call.arguments['packageName'];
+        final isTimerExpired = call.arguments['timerExpired'] ?? false;
+
+        print('Package: $packageName, Timer expired: $isTimerExpired');
+
+        // Initialize the pause screen with the provided data
+        _initializeFromAndroid(packageName, isTimerExpired);
+      }
+    });
 
     // Manually parse query parameters from the route
     final route = Get.rawRoute?.toString() ?? '';
     bool timerExpired = false;
 
-    if (route.contains('timer_expired=true')) {
+    // Check both route string and Get.parameters
+    if (route.contains('timer_expired=true') ||
+        Get.parameters['timer_expired'] == 'true') {
       timerExpired = true;
     }
 
+    print('lockedPackageName: $lockedPackageName');
+    print('timerExpired: $timerExpired');
+
     if (lockedPackageName == null) {
+      print('No package name provided, redirecting to home');
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Get.offAllNamed(AppRoutes.home);
       });
@@ -188,9 +237,18 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     }
 
     if (timerExpired) {
+      print('Timer expired detected from Android - showing pause flow');
       showTimer.value = false;
       showButtons.value = false; // Start with water animation
+
+      // Ensure we start fresh with water animation
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (waterController.status != AnimationStatus.forward) {
+          waterController.forward();
+        }
+      });
     } else {
+      print('Normal pause flow - showing water animation');
       showTimer.value = false;
       showButtons.value = false; // Start with water animation
     }
@@ -231,6 +289,51 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     _initializeAppData();
   }
 
+  void _handleTimerExpiration() {
+    print('=== _handleTimerExpiration called ===');
+    // Show timer expired UI state
+    showTimer.value = false;
+    showButtons.value = false; // Start with water animation
+    print('Timer expired UI state set');
+  }
+
+  void _initializeFromAndroid(String packageName, bool isTimerExpired) {
+    print('=== _initializeFromAndroid called ===');
+    print('Package: $packageName, Timer expired: $isTimerExpired');
+
+    // Set the package name
+    lockedPackageName = packageName;
+
+    if (isTimerExpired) {
+      print('Timer expired detected from Android - showing pause flow');
+      showTimer.value = false;
+      showButtons.value = false; // Start with water animation
+
+      // Ensure we start fresh with water animation
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (waterController.status != AnimationStatus.forward) {
+          waterController.forward();
+        }
+      });
+    } else {
+      print('Normal pause flow - showing water animation');
+      showTimer.value = false;
+      showButtons.value = false; // Start with water animation
+    }
+
+    // Initialize app data
+    _initializeAppData();
+
+    // Start water animation if not already running
+    if (waterController.status != AnimationStatus.forward) {
+      waterController.forward();
+    }
+
+    // Log analytics
+    AnalyticsService.to.logScreenView('pause_page');
+    AnalyticsService.to.logAppBlocked(lockedPackageName!);
+  }
+
   Future<void> _initializeAppData() async {
     if (lockedPackageName != null) {
       try {
@@ -250,6 +353,8 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
 
   @override
   void onClose() {
+    print('=== PauseController.onClose() called ===');
+
     // Send broadcast to notify that pause screen is closed
     if (lockedPackageName != null) {
       try {
@@ -257,8 +362,9 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
             .invokeMethod('pauseScreenClosed', {
           'package_name': lockedPackageName,
         });
+        print('Sent pause screen closed broadcast for $lockedPackageName');
       } catch (e) {
-        // Handle error silently
+        print('Error sending pause screen closed broadcast: $e');
       }
     }
 

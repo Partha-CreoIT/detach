@@ -43,6 +43,9 @@ class PauseActivity : FlutterActivity() {
         Log.d(TAG, "Intent extras: ${intent.extras}")
         Log.d(TAG, "Intent action: ${intent.action}")
 
+        // Disable animations for fresh start
+        overridePendingTransition(0, 0)
+
         sharedPreferences = getSharedPreferences("DetachPrefs", Context.MODE_PRIVATE)
 
         val filter = IntentFilter("SESSION_END")
@@ -59,7 +62,7 @@ class PauseActivity : FlutterActivity() {
         // Check if this is a timer expiration case
         val timerExpired = intent.getBooleanExtra("timer_expired", false)
         if (timerExpired) {
-            Log.d(TAG, "PauseActivity opened due to timer expiration")
+            Log.d(TAG, "PauseActivity opened due to timer expiration - fresh start")
             // Don't start a new timer, just show the pause screen
         } else if (sessionKey != null && startTime > 0 && duration > 0) {
             saveSessionData()
@@ -149,6 +152,12 @@ class PauseActivity : FlutterActivity() {
         checkEarlyClose()
     }
 
+    override fun finish() {
+        super.finish()
+        // Disable exit animations
+        overridePendingTransition(0, 0)
+    }
+
     private fun checkEarlyClose() {
         sessionKey?.let { key ->
             val currentTime = System.currentTimeMillis()
@@ -186,9 +195,70 @@ class PauseActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         
-        Log.d(TAG, "=== configureFlutterEngine called ===")
+        Log.e(TAG, "=== configureFlutterEngine called ===")
+        Log.e(TAG, "Intent extras: ${intent.extras}")
+        Log.e(TAG, "Intent action: ${intent.action}")
 
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        
+        // Get intent data
+        val packageName = intent.getStringExtra("blocked_app_package")
+        val timerExpired = intent.getBooleanExtra("timer_expired", false)
+        val timerState = intent.getStringExtra("timer_state")
+        
+        Log.e(TAG, "Package name: $packageName")
+        Log.e(TAG, "Timer expired: $timerExpired")
+        Log.e(TAG, "Timer state: $timerState")
+        
+        // Send initialization data to Flutter
+        if (packageName != null) {
+            Log.e(TAG, "Sending initialization data to Flutter...")
+            handler.postDelayed({
+                try {
+                    Log.e(TAG, "Attempting to send initialization data...")
+                    methodChannel.invokeMethod("initializePause", mapOf(
+                        "packageName" to packageName,
+                        "timerExpired" to timerExpired,
+                        "timerState" to timerState
+                    ))
+                    Log.e(TAG, "Initialization data sent to Flutter successfully")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error sending initialization data: ${e.message}", e)
+                }
+            }, 500) // 0.5 second delay
+        }
+        
+        // Check if this is a timer expiration case and notify Flutter
+        if (timerExpired) {
+            Log.e(TAG, "Timer expired detected, notifying Flutter via method channel")
+            // Use a small delay to ensure Flutter is ready
+            handler.postDelayed({
+                try {
+                    Log.e(TAG, "Attempting to send timer expired notification...")
+                    methodChannel.invokeMethod("timerExpired", mapOf(
+                        "packageName" to packageName,
+                        "timerState" to timerState
+                    ))
+                    Log.e(TAG, "Timer expired notification sent to Flutter successfully")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error sending timer expired notification: ${e.message}", e)
+                }
+            }, 1000) // 1 second delay
+        } else {
+            Log.e(TAG, "Not a timer expiration case")
+        }
+        
+        // Test method channel communication
+        handler.postDelayed({
+            try {
+                Log.e(TAG, "Testing method channel communication...")
+                methodChannel.invokeMethod("test", mapOf("message" to "Hello from Android"))
+                Log.e(TAG, "Test method channel message sent")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error sending test method channel message: ${e.message}", e)
+            }
+        }, 2000) // 2 second delay
+        
         methodChannel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "getSessionInfo" -> {
@@ -304,10 +374,11 @@ class PauseActivity : FlutterActivity() {
         val timerExpired = intent.getBooleanExtra("timer_expired", false)
         val timerState = intent.getStringExtra("timer_state")
         
-        Log.d(TAG, "=== getInitialRoute called ===")
-        Log.d(TAG, "Package name from intent: $packageName")
-        Log.d(TAG, "Timer expired: $timerExpired")
-        Log.d(TAG, "Timer state: $timerState")
+        Log.e(TAG, "=== getInitialRoute called ===")
+        Log.e(TAG, "Package name from intent: $packageName")
+        Log.e(TAG, "Timer expired: $timerExpired")
+        Log.e(TAG, "Timer state: $timerState")
+        Log.e(TAG, "All intent extras: ${intent.extras}")
         
         val route = if (packageName != null) {
             if (timerExpired) {
@@ -319,8 +390,8 @@ class PauseActivity : FlutterActivity() {
             "/pause"
         }
         
-        Log.d(TAG, "Returning route: $route")
-        Log.d(TAG, "=== getInitialRoute completed ===")
+        Log.e(TAG, "Returning route: $route")
+        Log.e(TAG, "=== getInitialRoute completed ===")
         return route
     }
 }

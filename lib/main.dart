@@ -7,6 +7,8 @@ import 'package:detach/firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:detach/app/pages/pause/views/pause_view.dart';
+import 'package:detach/app/pages/pause/bindings/pause_binding.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,6 +47,35 @@ class DetachApp extends StatelessWidget {
             ],
             initialRoute: AppRoutes.splash,
             getPages: AppPages.pages,
+            onGenerateInitialRoutes: (String initialRoute) {
+              print('=== DetachApp: onGenerateInitialRoutes called ===');
+              print('Initial route: $initialRoute');
+
+              // Check if this is a pause route from Android
+              if (initialRoute.startsWith('/pause')) {
+                print('=== DetachApp: Direct pause route detected ===');
+                return [
+                  PageRouteBuilder(
+                    settings: RouteSettings(name: initialRoute),
+                    pageBuilder: (context, animation, secondaryAnimation) {
+                      // Manually initialize the binding
+                      PauseBinding().dependencies();
+                      return const PauseView();
+                    },
+                    transitionsBuilder:
+                        (context, animation, secondaryAnimation, child) {
+                      // No transition - instant display
+                      return child;
+                    },
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: Duration.zero,
+                  )
+                ];
+              }
+
+              // Default route handling
+              return [];
+            },
           );
         });
       },

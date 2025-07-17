@@ -257,21 +257,47 @@ class AppLaunchInterceptor : Service() {
         appSessions.remove(packageName)
         android.util.Log.d(TAG, "Session data cleared for $packageName")
 
-        // Close the target app and show pause screen
+        // Force close the target app more aggressively
         try {
             android.util.Log.d(TAG, "Force stopping app: $packageName")
-            // Force stop the target app
             val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            
+            // Method 1: Kill background processes
             am.killBackgroundProcesses(packageName)
             
-            // Small delay to ensure app is closed
+            // Method 2: Try to force stop using shell command (if available)
+            try {
+                val process = Runtime.getRuntime().exec(arrayOf("am", "force-stop", packageName))
+                process.waitFor()
+                android.util.Log.d(TAG, "Force stop command executed for $packageName")
+            } catch (e: Exception) {
+                android.util.Log.d(TAG, "Could not force stop $packageName using shell command: ${e.message}")
+            }
+            
+            // Method 3: Clear recent tasks to remove the app from recents
+            try {
+                // Clear recent tasks by restarting the launcher
+                val homeIntent = Intent(Intent.ACTION_MAIN)
+                homeIntent.addCategory(Intent.CATEGORY_HOME)
+                homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                startActivity(homeIntent)
+                android.util.Log.d(TAG, "Recent tasks cleared via home intent")
+            } catch (e: Exception) {
+                android.util.Log.d(TAG, "Could not clear recent tasks: ${e.message}")
+            }
+            
+            // Longer delay to ensure app is completely closed
             handler.postDelayed({
-                // Show pause screen
+                // Show pause screen with fresh start flags
                 handler.post {
                     try {
                         android.util.Log.d(TAG, "Launching pause screen after timer expiration for $packageName")
                         val pauseIntent = Intent(this, PauseActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            // Use flags to ensure fresh start
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
+                                   Intent.FLAG_ACTIVITY_CLEAR_TOP or 
+                                   Intent.FLAG_ACTIVITY_CLEAR_TASK or
+                                   Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
                             putExtra("blocked_app_package", packageName)
                             putExtra("show_lock", true)
                             putExtra("timer_expired", true)
@@ -283,7 +309,7 @@ class AppLaunchInterceptor : Service() {
                         android.util.Log.e(TAG, "Error launching pause screen: ${e.message}", e)
                     }
                 }
-            }, 1000) // 1 second delay
+            }, 2000) // Increased delay to 2 seconds to ensure app is closed
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error handling session end: ${e.message}", e)
         }
