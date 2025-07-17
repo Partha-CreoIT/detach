@@ -1,36 +1,79 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:detach/app/routes/app_routes.dart';
 import 'package:detach/services/analytics_service.dart';
 import 'package:detach/services/permission_service.dart';
-import 'package:detach/app/routes/app_routes.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:detach/services/theme_service.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
+
   @override
   State<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage>
-    with SingleTickerProviderStateMixin {
+class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   late AnimationController _controller;
+  late AnimationController _logoController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
+  late Animation<double> _logoScaleAnimation;
+  late Animation<double> _logoRotationAnimation;
+  late Animation<double> _logoOpacityAnimation;
+
   @override
   void initState() {
     super.initState();
+
+    // Main animation controller
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 1400),
+      duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
+
+    // Logo animation controller
+    _logoController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+
+    // Main animations
     _scaleAnimation = Tween<double>(
-      begin: 0.9,
-      end: 1.05,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutExpo));
+      begin: 0.8,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
+
     _fadeAnimation = Tween<double>(
       begin: 0,
       end: 1,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
+
+    // Logo animations
+    _logoScaleAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(
+        CurvedAnimation(parent: _logoController, curve: Curves.elasticOut));
+
+    _logoRotationAnimation = Tween<double>(
+      begin: -0.5,
+      end: 0.0,
+    ).animate(
+        CurvedAnimation(parent: _logoController, curve: Curves.easeOutBack));
+
+    _logoOpacityAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _logoController, curve: Curves.easeIn));
+
+    // Start animations
     _controller.forward();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _logoController.forward();
+    });
+
     Future.delayed(const Duration(seconds: 3), () {
       _navigateToProfile();
     });
@@ -75,6 +118,7 @@ class _SplashPageState extends State<SplashPage>
   @override
   void dispose() {
     _controller.dispose();
+    _logoController.dispose();
     super.dispose();
   }
 
@@ -82,7 +126,7 @@ class _SplashPageState extends State<SplashPage>
   Widget build(BuildContext context) {
     return Scaffold(
       body: AnimatedBuilder(
-        animation: _controller,
+        animation: Listenable.merge([_controller, _logoController]),
         builder: (context, child) {
           return Transform.scale(
             scale: _scaleAnimation.value,
@@ -91,34 +135,97 @@ class _SplashPageState extends State<SplashPage>
               child: Container(
                 width: double.infinity,
                 height: double.infinity,
-                color: Colors.black,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: Theme.of(context).brightness == Brightness.dark
+                        ? [
+                            const Color(0xFF1A1A1A),
+                            const Color(0xFF2A2A2A),
+                            const Color(0xFF1A1A1A),
+                          ]
+                        : [
+                            const Color(0xFFFAFBFF),
+                            const Color(0xFFF1F5F9),
+                            const Color(0xFFFAFBFF),
+                          ],
+                  ),
+                ),
                 child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
-                        Icons.hourglass_empty_rounded,
-                        color: Colors.white,
-                        size: 80,
+                      // Animated SVG logo
+                      AnimatedBuilder(
+                        animation: _logoController,
+                        builder: (context, child) {
+                          return Transform.scale(
+                            scale: _logoScaleAnimation.value,
+                            child: Transform.rotate(
+                              angle: _logoRotationAnimation.value,
+                              child: Opacity(
+                                opacity: _logoOpacityAnimation.value,
+                                child: Container(
+                                  width: 120,
+                                  height: 120,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(60),
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        const Color(0xFF6B75F2),
+                                        const Color(0xFF8B5CF6),
+                                      ],
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF6B75F2)
+                                            .withOpacity(0.3),
+                                        blurRadius: 20,
+                                        spreadRadius: 5,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Center(
+                                    child: SvgPicture.asset(
+                                      'assets/svg/detach_symbol_black.svg',
+                                      width: 60,
+                                      height: 60,
+                                      colorFilter: const ColorFilter.mode(
+                                        Colors.white,
+                                        BlendMode.srcIn,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                      const SizedBox(height: 16),
-                      const Text(
+                      const SizedBox(height: 32),
+                      Text(
                         "DETACH",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          letterSpacing: 4,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'monospace', // modern feel
+                        style: GoogleFonts.inter(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : const Color(0xFF1E293B),
+                          fontSize: 32,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 6,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       Text(
-                        "Take a break from digital life",
-                        style: TextStyle(
-                          color: Colors.grey[400],
-                          fontSize: 14,
-                          fontStyle: FontStyle.italic,
+                        "Break free from digital addiction",
+                        style: GoogleFonts.inter(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey[400]
+                              : const Color(0xFF64748B),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
                     ],

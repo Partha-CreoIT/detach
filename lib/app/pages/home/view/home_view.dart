@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import '../controller/home_controller.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:detach/services/theme_service.dart';
+import 'widgets/info_bottom_sheet.dart';
+import 'package:flutter/services.dart';
 
 class HomeView extends GetView<HomeController> {
   const HomeView({super.key});
@@ -17,7 +19,36 @@ class HomeView extends GetView<HomeController> {
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        systemOverlayStyle: Theme.of(context).brightness == Brightness.dark
+            ? const SystemUiOverlayStyle(
+                statusBarColor: Colors.transparent,
+                statusBarIconBrightness: Brightness.light,
+                statusBarBrightness: Brightness.dark,
+              )
+            : const SystemUiOverlayStyle(
+                statusBarColor: Colors.transparent,
+                statusBarIconBrightness: Brightness.dark,
+                statusBarBrightness: Brightness.light,
+              ),
         actions: [
+          // Information button
+          IconButton(
+            onPressed: () => context.showInfoBottomSheet(),
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.info_outline_rounded,
+                color: Theme.of(context).colorScheme.primary,
+                size: 20,
+              ),
+            ),
+            tooltip: 'How Detach Works',
+          ),
+          const SizedBox(width: 8),
           PopupMenuButton<ThemeMode>(
             icon: Obx(() {
               final themeService = Get.find<ThemeService>();
@@ -38,7 +69,7 @@ class HomeView extends GetView<HomeController> {
             onSelected: (ThemeMode mode) {
               final themeService = Get.find<ThemeService>();
               themeService.setThemeMode(mode);
-              // Force status bar update
+              // Single status bar update is sufficient
               themeService.updateStatusBarStyle();
             },
             itemBuilder: (BuildContext context) => [

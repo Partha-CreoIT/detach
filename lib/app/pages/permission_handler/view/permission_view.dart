@@ -5,6 +5,8 @@ import 'widgets/permission_battery_view.dart';
 import 'widgets/permission_overlay_view.dart';
 import 'widgets/permission_usage_view.dart';
 import 'package:detach/app/routes/app_routes.dart';
+import 'package:detach/services/theme_service.dart';
+import 'package:flutter/services.dart';
 
 class PermissionView extends GetView<PermissionController> {
   const PermissionView({super.key});
@@ -13,6 +15,19 @@ class PermissionView extends GetView<PermissionController> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Configure Permissions'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        systemOverlayStyle: Theme.of(context).brightness == Brightness.dark
+            ? const SystemUiOverlayStyle(
+                statusBarColor: Colors.transparent,
+                statusBarIconBrightness: Brightness.light,
+                statusBarBrightness: Brightness.dark,
+              )
+            : const SystemUiOverlayStyle(
+                statusBarColor: Colors.transparent,
+                statusBarIconBrightness: Brightness.dark,
+                statusBarBrightness: Brightness.light,
+              ),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () async {
