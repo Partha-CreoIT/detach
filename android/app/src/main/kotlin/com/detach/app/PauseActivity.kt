@@ -38,6 +38,10 @@ class PauseActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        Log.d(TAG, "=== PauseActivity.onCreate() called ===")
+        Log.d(TAG, "Intent extras: ${intent.extras}")
+        Log.d(TAG, "Intent action: ${intent.action}")
 
         sharedPreferences = getSharedPreferences("DetachPrefs", Context.MODE_PRIVATE)
 
@@ -181,6 +185,8 @@ class PauseActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        
+        Log.d(TAG, "=== configureFlutterEngine called ===")
 
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
         methodChannel.setMethodCallHandler { call, result ->
@@ -267,6 +273,26 @@ class PauseActivity : FlutterActivity() {
                         result.error("INVALID_ARG", "Package name or duration is null", null)
                     }
                 }
+                
+                "pauseScreenClosed" -> {
+                    val packageName = call.argument<String>("package_name")
+                    if (packageName != null) {
+                        Log.d(TAG, "=== PauseActivity: pauseScreenClosed called ===")
+                        Log.d(TAG, "Package: $packageName")
+                        
+                        // Send broadcast to AppLaunchInterceptor
+                        val broadcastIntent = Intent("com.example.detach.PAUSE_SCREEN_CLOSED").apply {
+                            putExtra("package_name", packageName)
+                        }
+                        sendBroadcast(broadcastIntent)
+                        Log.d(TAG, "Sent PAUSE_SCREEN_CLOSED broadcast for $packageName")
+                        
+                        result.success(true)
+                    } else {
+                        Log.e(TAG, "Package name is null in pauseScreenClosed")
+                        result.error("INVALID_ARG", "Package name is null", null)
+                    }
+                }
 
                 else -> result.notImplemented()
             }
@@ -274,13 +300,27 @@ class PauseActivity : FlutterActivity() {
     }
 
     override fun getInitialRoute(): String {
-        val packageName = intent.getStringExtra("blocked_app_package") ?: "unknown"
+        val packageName = intent.getStringExtra("blocked_app_package")
         val timerExpired = intent.getBooleanExtra("timer_expired", false)
+        val timerState = intent.getStringExtra("timer_state")
         
-        return if (timerExpired) {
-            "/pause?package=$packageName&timer_expired=true"
+        Log.d(TAG, "=== getInitialRoute called ===")
+        Log.d(TAG, "Package name from intent: $packageName")
+        Log.d(TAG, "Timer expired: $timerExpired")
+        Log.d(TAG, "Timer state: $timerState")
+        
+        val route = if (packageName != null) {
+            if (timerExpired) {
+                "/pause?package=$packageName&timer_expired=true&timer_state=$timerState"
+            } else {
+                "/pause?package=$packageName"
+            }
         } else {
-            "/pause?package=$packageName"
+            "/pause"
         }
+        
+        Log.d(TAG, "Returning route: $route")
+        Log.d(TAG, "=== getInitialRoute completed ===")
+        return route
     }
 }

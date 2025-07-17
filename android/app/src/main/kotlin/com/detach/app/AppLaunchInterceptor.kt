@@ -20,6 +20,8 @@ class AppLaunchInterceptor : Service() {
     private lateinit var usageStatsManager: UsageStatsManager
     private lateinit var handler: Handler
     private var lastEventTime = 0L
+    private var serviceStartTime = 0L
+    private val startupDelayMillis = 3000L // 3 seconds delay after service starts
     private val permanentlyBlockedApps = mutableSetOf<String>()
     private var isMonitoringEnabled = true
     private val unblockedApps = mutableMapOf<String, Long>()
@@ -28,6 +30,10 @@ class AppLaunchInterceptor : Service() {
     private val earlyClosedApps = mutableMapOf<String, Long>()
     private val recentlyBlockedApps = mutableMapOf<String, Long>()
     private val blockCooldownMillis = 3000L // 3 seconds after blocking to not show pause
+    private val pauseLaunchCooldownMillis = 2000L // 2 seconds between pause launches
+    private val lastPauseLaunchTime = mutableMapOf<String, Long>()
+    private val lastBackgroundedTime = mutableMapOf<String, Long>()
+    private val backgroundCooldownMillis = 1000L // 1 second cooldown between background events
 
     // Timer management for app sessions
     private val timerRunnables = mutableMapOf<String, Runnable>()
@@ -72,6 +78,14 @@ class AppLaunchInterceptor : Service() {
                     val packageName = intent.getStringExtra("package_name")
                     if (packageName != null && currentlyPausedApp == packageName) {
                         currentlyPausedApp = null
+                        android.util.Log.d(TAG, "Reset pause flag for $packageName")
+                    }
+                }
+                "com.example.detach.PAUSE_SCREEN_CLOSED" -> {
+                    val packageName = intent.getStringExtra("package_name")
+                    if (packageName != null) {
+                        currentlyPausedApp = null
+                        android.util.Log.d(TAG, "Pause screen closed for $packageName")
                     }
                 }
                 "com.example.detach.START_APP_SESSION" -> {
@@ -261,6 +275,7 @@ class AppLaunchInterceptor : Service() {
                             putExtra("blocked_app_package", packageName)
                             putExtra("show_lock", true)
                             putExtra("timer_expired", true)
+                            putExtra("timer_state", "expired")
                         }
                         startActivity(pauseIntent)
                         android.util.Log.d(TAG, "Pause screen launched successfully after timer expiration")
@@ -334,6 +349,7 @@ class AppLaunchInterceptor : Service() {
     override fun onCreate() {
         super.onCreate()
 
+        serviceStartTime = System.currentTimeMillis()
         usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         handler = Handler(Looper.getMainLooper())
 
@@ -342,6 +358,7 @@ class AppLaunchInterceptor : Service() {
             addAction("com.example.detach.RESET_APP_BLOCK")
             addAction("com.example.detach.PERMANENTLY_BLOCK_APP")
             addAction("com.example.detach.RESET_PAUSE_FLAG")
+            addAction("com.example.detach.PAUSE_SCREEN_CLOSED")
             addAction("com.example.detach.START_APP_SESSION")
             addAction("com.example.detach.APP_BLOCKED")
             addAction("com.example.detach.LAUNCH_APP_WITH_TIMER")
@@ -358,15 +375,18 @@ class AppLaunchInterceptor : Service() {
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "Error in monitoring: ${e.message}", e)
             }
-        }, 0, 10, TimeUnit.MILLISECONDS)
+        }, 0, 100, TimeUnit.MILLISECONDS) // Increased from 10ms to 100ms to reduce frequency
     }
 
     private fun monitorAppUsage() {
         val currentTime = System.currentTimeMillis()
         val events = usageStatsManager.queryEvents(lastEventTime, currentTime)
         val event = UsageEvents.Event()
+        var eventProcessed = false
+        
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
+            eventProcessed = true
 
             if (event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND) {
                 val packageName = event.packageName
@@ -374,8 +394,14 @@ class AppLaunchInterceptor : Service() {
                 if (packageName != null) {
                     if (packageName == "com.detach.app") {
                         lastForegroundApp = packageName
+                        android.util.Log.d(TAG, "Detach app launched, setting as last foreground app")
                     } else {
-                        handleAppLaunch(packageName)
+                        // Only handle app launch if we're not in the middle of app startup
+                        if (lastForegroundApp != null) {
+                            handleAppLaunch(packageName)
+                        } else {
+                            android.util.Log.d(TAG, "Skipping app launch check during startup for: $packageName")
+                        }
                         lastForegroundApp = packageName
                     }
                 }
@@ -387,10 +413,26 @@ class AppLaunchInterceptor : Service() {
                 }
             }
         }
-        lastEventTime = currentTime
+        
+        // Only update lastEventTime if we actually processed events
+        if (eventProcessed) {
+            lastEventTime = currentTime
+        }
     }
 
     private fun handleAppLaunch(packageName: String) {
+        // Don't handle Detach app itself
+        if (packageName == "com.detach.app") {
+            return
+        }
+        
+        // Check if service just started - don't show pause screen during startup
+        val currentTime = System.currentTimeMillis()
+        if ((currentTime - serviceStartTime) < startupDelayMillis) {
+            android.util.Log.d(TAG, "Service just started, skipping pause screen for $packageName during startup delay")
+            return
+        }
+        
         val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
 
         // Check cooldown first
@@ -416,10 +458,17 @@ class AppLaunchInterceptor : Service() {
             }
         }
 
-        // Check if Detach was the last foreground app
-        if (lastForegroundApp == "com.detach.app") {
-            android.util.Log.d(TAG, "Detach was last foreground app, not showing pause for $packageName")
+        // Additional check: Don't show pause screen during initial app startup
+        if (lastForegroundApp == null) {
+            android.util.Log.d(TAG, "No last foreground app (app startup), not showing pause for $packageName")
             return
+        }
+
+        // Check if Detach was the last foreground app - this is actually when we SHOULD show pause
+        // because user is coming from Detach app to try to open a blocked app
+        if (lastForegroundApp == "com.detach.app") {
+            android.util.Log.d(TAG, "User coming from Detach app to open $packageName - this is correct behavior")
+            // Don't return here - continue to check if app is blocked
         }
 
         // Check if app has an active session - if so, don't show pause screen
@@ -443,12 +492,27 @@ class AppLaunchInterceptor : Service() {
 
             handler.post {
                 try {
+                    // Check cooldown to prevent rapid launches
+                    val lastLaunchTime = lastPauseLaunchTime[packageName] ?: 0L
+                    val currentTime = System.currentTimeMillis()
+                    if ((currentTime - lastLaunchTime) < pauseLaunchCooldownMillis) {
+                        android.util.Log.d(TAG, "Pause screen cooldown active for $packageName, skipping")
+                        return@post
+                    }
+                    
+                    // Reset the currently paused app flag to allow new pause screen
+                    currentlyPausedApp = null
+                    
                     val pauseIntent = Intent(this, PauseActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                         putExtra("blocked_app_package", packageName)
                         putExtra("show_lock", true)
+                        putExtra("timer_expired", false)
+                        putExtra("timer_state", "normal")
                     }
                     startActivity(pauseIntent)
+                    lastPauseLaunchTime[packageName] = currentTime
+                    android.util.Log.d(TAG, "Pause screen launched for $packageName")
                 } catch (e: Exception) {
                     currentlyPausedApp = null
                     android.util.Log.e(TAG, "Error launching pause screen: ${e.message}", e)
@@ -460,6 +524,15 @@ class AppLaunchInterceptor : Service() {
     }
 
     private fun handleAppBackgrounded(packageName: String) {
+        // Check cooldown to prevent rapid background events
+        val lastBackgroundTime = lastBackgroundedTime[packageName] ?: 0L
+        val currentTime = System.currentTimeMillis()
+        if ((currentTime - lastBackgroundTime) < backgroundCooldownMillis) {
+            android.util.Log.d(TAG, "Background cooldown active for $packageName, skipping")
+            return
+        }
+        lastBackgroundedTime[packageName] = currentTime
+        
         android.util.Log.d(TAG, "=== handleAppBackgrounded called for $packageName ===")
 
         // If the app was temporarily unblocked, re-block it immediately

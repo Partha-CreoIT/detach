@@ -21,7 +21,7 @@ class PauseView extends GetView<PauseController> {
               () => !controller.showButtons.value
                   ? Center(
                       child: Text(
-                        "It's time to take a deep breath",
+                        "It's time to take a deep\nbreath...",
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
@@ -67,89 +67,88 @@ class PauseView extends GetView<PauseController> {
             ),
             // Buttons and Counter
             Obx(
-              () =>
-                  controller.showButtons.value
-                      ? Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Spacer(),
-                              Text(
-                                controller.attemptsToday.value.toString(),
-                                style: TextStyle(
-                                  fontSize: 120,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context)
-                                          .textTheme
-                                          .bodyLarge
-                                          ?.color ??
-                                      Colors.black,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Obx(
-                                () => Text(
-                                  'attempts to open ${controller.displayAppName.isNotEmpty ? controller.displayAppName : (controller.lockedPackageName ?? "App")} within the\nlast 24 hours.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    color: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium
-                                            ?.color ??
-                                        Colors.black87,
-                                    height: 1.5,
-                                  ),
-                                ),
-                              ),
-                              const Spacer(),
-                              FilledButton(
-                                onPressed: controller.blockApp,
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFF6B75F2),
-                                  minimumSize: const Size(double.infinity, 56),
-                                  shape: const SmoothRectangleBorder(
-                                    borderRadius: SmoothBorderRadius.all(
-                                      SmoothRadius(
-                                        cornerRadius: 16,
-                                        cornerSmoothing: 1,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                child: Text(
-                                  "I don't want to open ${controller.displayAppName}",
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              TextButton(
-                                onPressed: controller.continueApp,
-                                style: TextButton.styleFrom(
-                                  minimumSize: const Size(double.infinity, 44),
-                                  foregroundColor: const Color(0xFF6B75F2),
-                                  shape: const SmoothRectangleBorder(
-                                    borderRadius: SmoothBorderRadius.all(
-                                      SmoothRadius(
-                                        cornerRadius: 16,
-                                        cornerSmoothing: 1,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                child: Text(
-                                  'Continue on ${controller.displayAppName}',
-                                ),
-                              ),
-                              const SizedBox(height: 32),
-                            ],
+              () => controller.showButtons.value
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Spacer(),
+                          Text(
+                            controller.attemptsToday.value.toString(),
+                            style: TextStyle(
+                              fontSize: 120,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.color ??
+                                  Colors.black,
+                            ),
                           ),
-                        )
-                      : const SizedBox.shrink(),
+                          const SizedBox(height: 16),
+                          Obx(
+                            () => Text(
+                              'attempts to open ${controller.displayAppName.isNotEmpty ? controller.displayAppName : (controller.lockedPackageName ?? "App")} within the\nlast 24 hours.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.color ??
+                                    Colors.black87,
+                                height: 1.5,
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          FilledButton(
+                            onPressed: controller.blockApp,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFF6B75F2),
+                              minimumSize: const Size(double.infinity, 56),
+                              shape: const SmoothRectangleBorder(
+                                borderRadius: SmoothBorderRadius.all(
+                                  SmoothRadius(
+                                    cornerRadius: 16,
+                                    cornerSmoothing: 1,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            child: Text(
+                              "I don't want to open ${controller.displayAppName}",
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextButton(
+                            onPressed: controller.continueApp,
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size(double.infinity, 44),
+                              foregroundColor: const Color(0xFF6B75F2),
+                              shape: const SmoothRectangleBorder(
+                                borderRadius: SmoothBorderRadius.all(
+                                  SmoothRadius(
+                                    cornerRadius: 16,
+                                    cornerSmoothing: 1,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            child: Text(
+                              'Continue on ${controller.displayAppName}',
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(),
             ),
             // Timer is now handled by Android service, so no need to display countdown here
           ],
