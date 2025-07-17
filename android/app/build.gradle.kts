@@ -59,6 +59,7 @@ flutter {
 
 dependencies {
     implementation("androidx.core:core-ktx:1.9.0")
+    implementation("androidx.core:core:1.9.0")
     
     // Import the Firebase BoM
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
