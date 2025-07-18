@@ -342,8 +342,11 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
                           children: [
                             Text(
                               '${_value}',
-                              style: const TextStyle(
-                                color: Color(0xFF6B75F2),
+                              style: TextStyle(
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.white
+                                    : const Color(0xFF6B75F2),
                                 fontSize: 36,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: -0.5,
@@ -352,10 +355,13 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 2),
-                            const Text(
+                            Text(
                               'minutes',
                               style: TextStyle(
-                                color: Color(0xFF6B75F2),
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.white
+                                    : const Color(0xFF6B75F2),
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 height: 1.0,

@@ -32,30 +32,6 @@ class HomeView extends GetView<HomeController> {
                 statusBarBrightness: Brightness.light,
               ),
         actions: [
-          // Test button for debugging
-          IconButton(
-            onPressed: () async {
-              await PlatformService.testServiceDetection();
-              if (controller.selectedAppPackages.isNotEmpty) {
-                await PlatformService.testPauseScreen(
-                    controller.selectedAppPackages.first);
-              }
-            },
-            icon: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.bug_report,
-                color: Colors.orange,
-                size: 20,
-              ),
-            ),
-            tooltip: 'Test Service',
-          ),
-          // Information button
           IconButton(
             onPressed: () => context.showInfoBottomSheet(),
             icon: Container(

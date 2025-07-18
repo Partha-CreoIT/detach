@@ -120,7 +120,6 @@ class PauseView extends GetView<PauseController> {
                             FilledButton(
                               onPressed: controller.blockApp,
                               style: FilledButton.styleFrom(
-                                backgroundColor: const Color(0xFF6B75F2),
                                 minimumSize: const Size(double.infinity, 56),
                                 shape: const SmoothRectangleBorder(
                                   borderRadius: SmoothBorderRadius.all(
@@ -144,7 +143,6 @@ class PauseView extends GetView<PauseController> {
                               onPressed: controller.continueApp,
                               style: TextButton.styleFrom(
                                 minimumSize: const Size(double.infinity, 44),
-                                foregroundColor: const Color(0xFF6B75F2),
                                 shape: const SmoothRectangleBorder(
                                   borderRadius: SmoothBorderRadius.all(
                                     SmoothRadius(
