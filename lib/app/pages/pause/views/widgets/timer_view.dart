@@ -72,7 +72,10 @@ class TimerView extends GetView<PauseController> {
                 // Timer Slider Section
                 Material(
                   color: Theme.of(context).cardColor,
-                  elevation: 4,
+                  elevation: 8,
+                  shadowColor: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
                   shape: const SmoothRectangleBorder(
                     borderRadius: SmoothBorderRadius.all(
                       SmoothRadius(
@@ -158,56 +161,34 @@ class TimerView extends GetView<PauseController> {
                 ),
                 const Spacer(),
                 // Start Button
-                Container(
-                  width: double.infinity,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF6B75F2), Color(0xFF8B5CF6)],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF6B75F2).withOpacity(0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
+                ElevatedButton.icon(
+                  icon: const Icon(
+                    Icons.play_arrow_rounded,
+                    color: Colors.white,
+                    size: 24,
                   ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(20),
-                      onTap: () {
-                        HapticFeedback.mediumImpact();
-                        controller.startCountdown();
-                        // Minimize Detach app to background after starting timer
-                        _minimizeAppToBackground();
-                      },
-                      child: Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.play_arrow_rounded,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Start Timer And Open ${controller.displayAppName}',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                          ],
-                        ),
+                  onPressed: () {
+                    HapticFeedback.mediumImpact();
+                    controller.startCountdown();
+                    // Minimize Detach app to background after starting timer
+                    _minimizeAppToBackground();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    shape: const SmoothRectangleBorder(
+                      borderRadius: SmoothBorderRadius.all(
+                        SmoothRadius(cornerRadius: 8, cornerSmoothing: 1),
                       ),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    minimumSize: const Size(double.infinity, 64),
+                  ),
+                  label: Text(
+                    'Start Timer And Open ${controller.displayAppName}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: -0.3,
                     ),
                   ),
                 ),
@@ -224,11 +205,13 @@ class TimerView extends GetView<PauseController> {
 class ModernTimeSlider extends StatefulWidget {
   final int value;
   final ValueChanged<int> onChanged;
+
   const ModernTimeSlider({
     super.key,
     required this.value,
     required this.onChanged,
   });
+
   @override
   State<ModernTimeSlider> createState() => _ModernTimeSliderState();
 }
@@ -239,6 +222,7 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
   final _sliderKey = GlobalKey();
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+
   @override
   void initState() {
     _value = widget.value;
@@ -329,7 +313,7 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF6B75F2).withOpacity(0.2),
+                            color: const Color(0xFF6B75F2),
                             blurRadius: 20,
                             offset: const Offset(0, 8),
                           ),
@@ -342,8 +326,11 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
                           children: [
                             Text(
                               '${_value}',
-                              style: const TextStyle(
-                                color: Color(0xFF6B75F2),
+                              style: TextStyle(
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.white
+                                    : const Color(0xFF6B75F2),
                                 fontSize: 36,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: -0.5,
@@ -352,10 +339,13 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 2),
-                            const Text(
+                            Text(
                               'minutes',
                               style: TextStyle(
-                                color: Color(0xFF6B75F2),
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.white
+                                    : const Color(0xFF6B75F2),
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 height: 1.0,
@@ -407,7 +397,9 @@ class _ModernTrackPainter extends CustomPainter {
 
 class _ModernProgressPainter extends CustomPainter {
   final double progress;
+
   _ModernProgressPainter(this.progress);
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height);
@@ -437,7 +429,9 @@ class _ModernProgressPainter extends CustomPainter {
 
 class _ModernHandlePainter extends CustomPainter {
   final double progress;
+
   _ModernHandlePainter(this.progress);
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height);

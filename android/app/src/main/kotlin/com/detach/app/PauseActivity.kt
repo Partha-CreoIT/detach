@@ -170,6 +170,16 @@ class PauseActivity : FlutterActivity() {
             unregisterReceiver(minimizeReceiver)
         } catch (_: Exception) {}
 
+        // Send PAUSE_SCREEN_CLOSED broadcast to clear currentlyPausedApp flag
+        val packageName = intent.getStringExtra("blocked_app_package")
+        if (packageName != null) {
+            val broadcastIntent = Intent("com.example.detach.PAUSE_SCREEN_CLOSED").apply {
+                putExtra("package_name", packageName)
+            }
+            sendBroadcast(broadcastIntent)
+            Log.d(TAG, "Sent PAUSE_SCREEN_CLOSED broadcast for $packageName in onDestroy")
+        }
+
         checkEarlyClose()
     }
 
@@ -178,6 +188,33 @@ class PauseActivity : FlutterActivity() {
         // Disable exit animations
         overridePendingTransition(0, 0)
     }
+
+    @Deprecated("Deprecated in API level 33")
+    override fun onBackPressed() {
+        handleBackPress()
+    }
+
+    private fun handleBackPress() {
+        // Send PAUSE_SCREEN_CLOSED broadcast to clear currentlyPausedApp flag
+        val packageName = intent.getStringExtra("blocked_app_package")
+        if (packageName != null) {
+            val broadcastIntent = Intent("com.example.detach.PAUSE_SCREEN_CLOSED").apply {
+                putExtra("package_name", packageName)
+            }
+            sendBroadcast(broadcastIntent)
+            Log.d(TAG, "Sent PAUSE_SCREEN_CLOSED broadcast for $packageName in handleBackPress")
+        }
+        
+        // Go to home and finish
+        val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+            addCategory(Intent.CATEGORY_HOME)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        startActivity(homeIntent)
+        finishAndRemoveTask()
+    }
+
+
 
     private fun checkEarlyClose() {
         sessionKey?.let { key ->

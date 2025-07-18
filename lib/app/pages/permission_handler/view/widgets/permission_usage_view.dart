@@ -75,7 +75,7 @@ class PermissionUsageView extends GetView<PermissionController> {
             ],
           ),
           SizedBox(
-            width: double.infinity,
+            width: double.maxFinite,
             child: ElevatedButton.icon(
               icon: const Icon(Icons.visibility),
               onPressed: () async {
@@ -83,12 +83,13 @@ class PermissionUsageView extends GetView<PermissionController> {
                 // Reset permission check so it will re-check when user returns
                 controller.resetPermissionCheck();
               },
-              style: ElevatedButton.styleFrom(
+              style: FilledButton.styleFrom(
                 shape: const SmoothRectangleBorder(
                   borderRadius: SmoothBorderRadius.all(
-                    SmoothRadius(cornerRadius: 16, cornerSmoothing: 1),
+                    SmoothRadius(cornerRadius: 8, cornerSmoothing: 1),
                   ),
                 ),
+                padding: const EdgeInsets.symmetric(vertical: 16),
               ),
               label: const Text(
                 'Grant Usage Permission',

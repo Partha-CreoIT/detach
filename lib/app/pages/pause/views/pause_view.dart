@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 
 class PauseView extends GetView<PauseController> {
   const PauseView({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -117,47 +118,55 @@ class PauseView extends GetView<PauseController> {
                               ),
                             ),
                             const Spacer(),
-                            FilledButton(
+                            ElevatedButton(
                               onPressed: controller.blockApp,
                               style: FilledButton.styleFrom(
-                                backgroundColor: const Color(0xFF6B75F2),
                                 minimumSize: const Size(double.infinity, 56),
                                 shape: const SmoothRectangleBorder(
                                   borderRadius: SmoothBorderRadius.all(
                                     SmoothRadius(
-                                      cornerRadius: 16,
+                                      cornerRadius: 8,
                                       cornerSmoothing: 1,
                                     ),
                                   ),
                                 ),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
                               ),
                               child: Text(
                                 "I don't want to open ${controller.displayAppName}",
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500,
+                                  color: Colors.white,
                                 ),
                               ),
                             ),
                             const SizedBox(height: 16),
                             TextButton(
-                              onPressed: controller.continueApp,
-                              style: TextButton.styleFrom(
-                                minimumSize: const Size(double.infinity, 44),
-                                foregroundColor: const Color(0xFF6B75F2),
-                                shape: const SmoothRectangleBorder(
-                                  borderRadius: SmoothBorderRadius.all(
-                                    SmoothRadius(
-                                      cornerRadius: 16,
-                                      cornerSmoothing: 1,
+                                onPressed: controller.continueApp,
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size(double.infinity, 44),
+                                  shape: const SmoothRectangleBorder(
+                                    borderRadius: SmoothBorderRadius.all(
+                                      SmoothRadius(
+                                        cornerRadius: 8,
+                                        cornerSmoothing: 1,
+                                      ),
                                     ),
                                   ),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 16),
                                 ),
-                              ),
-                              child: Text(
-                                'Continue on ${controller.displayAppName}',
-                              ),
-                            ),
+                                child: Text(
+                                  'Continue on ${controller.displayAppName}',
+                                  style: TextStyle(
+                                    color: Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.white
+                                        : const Color(0xFF6B75F2),
+                                  ),
+                                )),
                             const SizedBox(height: 32),
                           ],
                         ),

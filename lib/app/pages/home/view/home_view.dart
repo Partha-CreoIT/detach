@@ -160,6 +160,9 @@ class HomeView extends GetView<HomeController> {
                             const Spacer(),
                             TextButton(
                               onPressed: controller.clearAllSelected,
+                              style: TextButton.styleFrom(
+                                foregroundColor: const Color(0xFF1A237E),
+                              ),
                               child: const Text('Clear All'),
                             ),
                           ],

@@ -7,6 +7,7 @@ import 'package:detach/services/permission_service.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:detach/app/routes/app_routes.dart';
+import 'package:figma_squircle/figma_squircle.dart';
 
 class HomeController extends GetxController {
   final RxInt limitedAppsCount = 0.obs;
@@ -187,8 +188,10 @@ class HomeController extends GetxController {
                     onPressed: () => Get.back(),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      shape: const SmoothRectangleBorder(
+                        borderRadius: SmoothBorderRadius.all(
+                          SmoothRadius(cornerRadius: 8, cornerSmoothing: 1),
+                        ),
                       ),
                     ),
                     child: const Text('Cancel', style: TextStyle(fontSize: 16)),
@@ -196,22 +199,23 @@ class HomeController extends GetxController {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
+                  child: FilledButton(
                     onPressed: () {
                       Get.back();
                       Get.toNamed(AppRoutes.permission);
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF1A237E),
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      shape: const SmoothRectangleBorder(
+                        borderRadius: SmoothBorderRadius.all(
+                          SmoothRadius(cornerRadius: 8, cornerSmoothing: 1),
+                        ),
                       ),
                     ),
                     child: const Text(
                       'Configure',
-                      style: TextStyle(fontSize: 16),
+                      style: TextStyle(fontSize: 16, color: Colors.white),
                     ),
                   ),
                 ),

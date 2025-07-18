@@ -226,8 +226,8 @@ class MainActivity : FlutterActivity() {
                         // Send to AppLaunchInterceptor to handle timer and launch
                         val launchIntent = Intent(this, AppLaunchInterceptor::class.java).apply {
                             action = "com.example.detach.LAUNCH_APP_WITH_TIMER"
-                            putExtra("packageName", packageName)
-                            putExtra("durationSeconds", durationSeconds)
+                            putExtra("package_name", packageName)
+                            putExtra("duration_seconds", durationSeconds)
                         }
                         startService(launchIntent)
                         
@@ -251,7 +251,7 @@ class MainActivity : FlutterActivity() {
                         // Send to AppLaunchInterceptor to test pause screen
                         val testIntent = Intent(this, AppLaunchInterceptor::class.java).apply {
                             action = "com.example.detach.TEST_PAUSE_SCREEN"
-                            putExtra("packageName", packageName)
+                            putExtra("package_name", packageName)
                         }
                         startService(testIntent)
                         
@@ -259,6 +259,29 @@ class MainActivity : FlutterActivity() {
                     } else {
                         result.error("INVALID_ARG", "Package name is null", null)
                     }
+                }
+                "clearPauseFlag" -> {
+                    val packageName = call.argument<String>("packageName")
+                    Log.d(TAG, "Clearing pause flag for ${packageName ?: "all apps"}")
+                    
+                    // Send to AppLaunchInterceptor to clear pause flag
+                    val clearIntent = Intent(this, AppLaunchInterceptor::class.java).apply {
+                        action = "com.example.detach.CLEAR_PAUSE_FLAG"
+                        if (packageName != null) {
+                            putExtra("package_name", packageName)
+                        }
+                    }
+                    startService(clearIntent)
+                    
+                    result.success(true)
+                }
+                "forceRestartBlockerService" -> {
+                    forceRestartBlockerService()
+                    result.success(null)
+                }
+                "checkServiceHealth" -> {
+                    val healthInfo = checkServiceHealth()
+                    result.success(healthInfo)
                 }
                 else -> {
                     result.notImplemented()
@@ -408,5 +431,72 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {
             Log.e(TAG, "Error starting AppLaunchInterceptor service: ${e.message}", e)
         }
+    }
+
+    private fun forceRestartBlockerService() {
+        try {
+            Log.d(TAG, "Force restarting AppLaunchInterceptor service...")
+            
+            // Stop the current service
+            val stopIntent = Intent(this, AppLaunchInterceptor::class.java)
+            stopService(stopIntent)
+            
+            // Wait a moment for the service to stop
+            Thread.sleep(1000)
+            
+            // Start the service again
+            val startIntent = Intent(this, AppLaunchInterceptor::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(startIntent)
+            } else {
+                startService(startIntent)
+            }
+            
+            Log.d(TAG, "AppLaunchInterceptor service force restarted")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error force restarting AppLaunchInterceptor service: ${e.message}", e)
+        }
+    }
+
+    private fun checkServiceHealth(): Map<String, Any> {
+        val healthInfo = mutableMapOf<String, Any>()
+        
+        try {
+            // Check if service is running
+            val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            val runningServices = am.getRunningServices(Integer.MAX_VALUE)
+            val isRunning = runningServices.any { 
+                it.service.className == "com.detach.app.AppLaunchInterceptor" 
+            }
+            healthInfo["isRunning"] = isRunning
+            
+            // Check permissions
+            val hasUsageAccess = hasUsageAccess()
+            val hasOverlayPermission = Settings.canDrawOverlays(this)
+            val hasBatteryOptimization = isIgnoringBatteryOptimizations()
+            
+            healthInfo["hasUsageAccess"] = hasUsageAccess
+            healthInfo["hasOverlayPermission"] = hasOverlayPermission
+            healthInfo["hasBatteryOptimization"] = hasBatteryOptimization
+            healthInfo["hasPermissions"] = hasUsageAccess && hasOverlayPermission && hasBatteryOptimization
+            
+            // Check if there are blocked apps
+            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val blockedApps = prefs.getStringSet("blocked_apps", null)
+            val hasBlockedApps = blockedApps != null && blockedApps.isNotEmpty()
+            healthInfo["hasBlockedApps"] = hasBlockedApps
+            healthInfo["blockedAppsCount"] = blockedApps?.size ?: 0
+            
+            // Check if service is persistent (has wake lock, etc.)
+            healthInfo["isPersistent"] = isRunning && hasBatteryOptimization
+            
+            Log.d(TAG, "Service health check completed: $healthInfo")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking service health: ${e.message}", e)
+            healthInfo["error"] = e.message ?: "Unknown error"
+        }
+        
+        return healthInfo
     }
 }

@@ -157,8 +157,22 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
 
   void continueApp() async {
     AnalyticsService.to.logPauseSessionInterrupted();
+
+    // Reset the pause flag since the user is taking action
+    if (lockedPackageName != null) {
+      try {
+        await PlatformService.resetPauseFlag(lockedPackageName!);
+      } catch (e) {
+        // Handle error silently
+      }
+    }
+
+    // Transition to timer view
     showTimer.value = true;
+    showButtons.value = false; // Hide buttons when showing timer
     progressController.value = 0;
+
+    print('Transitioning to timer view for ${lockedPackageName}');
   }
 
   RxInt attemptsToday = 0.obs;
@@ -291,10 +305,18 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
 
   void _handleTimerExpiration() {
     print('=== _handleTimerExpiration called ===');
-    // Show timer expired UI state
+    // Show timer expired UI state - this should show the pause screen (water animation + buttons)
     showTimer.value = false;
     showButtons.value = false; // Start with water animation
-    print('Timer expired UI state set');
+
+    // Ensure water animation starts fresh
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (waterController.status != AnimationStatus.forward) {
+        waterController.forward();
+      }
+    });
+
+    print('Timer expired UI state set - showing pause screen flow');
   }
 
   void _initializeFromAndroid(String packageName, bool isTimerExpired) {
