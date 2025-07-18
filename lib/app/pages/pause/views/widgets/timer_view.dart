@@ -4,191 +4,197 @@ import 'package:get/get.dart';
 import '../../controllers/pause_controller.dart';
 import 'dart:math';
 import 'package:flutter/services.dart';
+import 'package:detach/services/theme_service.dart';
 
 class TimerView extends GetView<PauseController> {
   const TimerView({super.key});
+
+  void _minimizeAppToBackground() {
+    // Use platform channel to minimize app to background
+    const MethodChannel('com.detach.app/pause')
+        .invokeMethod('minimizeAppToBackground');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 60),
-              // Header Section
-              Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF6B75F2).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: const Icon(
-                      Icons.timer_outlined,
-                      color: Color(0xFF6B75F2),
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Choose wisely… \nor suffer distractions!',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color:
-                          Theme.of(context).textTheme.headlineMedium?.color ??
-                              const Color(0xFF1A1A1A),
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                ],
+      body: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: Theme.of(context).brightness == Brightness.dark
+            ? const SystemUiOverlayStyle(
+                statusBarColor: Colors.transparent,
+                statusBarIconBrightness: Brightness.light,
+                statusBarBrightness: Brightness.dark,
+              )
+            : const SystemUiOverlayStyle(
+                statusBarColor: Colors.transparent,
+                statusBarIconBrightness: Brightness.dark,
+                statusBarBrightness: Brightness.light,
               ),
-              const SizedBox(height: 80),
-              // Timer Slider Section
-              Material(
-                color: Theme.of(context).cardColor,
-                elevation: 4,
-                shape: const SmoothRectangleBorder(
-                  borderRadius: SmoothBorderRadius.all(
-                    SmoothRadius(
-                      cornerRadius: 32,
-                      cornerSmoothing: 1,
-                    ),
-                  ),
-                ),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      Obx(
-                        () => ModernTimeSlider(
-                          value: controller.selectedMinutes.value,
-                          onChanged: (v) =>
-                              controller.selectedMinutes.value = v,
-                        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Column(
+              children: [
+                const SizedBox(height: 60),
+                // Header Section
+                Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6B75F2).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(25),
                       ),
-                      const SizedBox(height: 12),
-                      // Time indicators positioned at arc endpoints
-                      SizedBox(
-                        height: 16,
-                        child: Stack(
-                          children: [
-                            Positioned(
-                              left: 16,
-                              child: Text(
-                                '1m',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.color
-                                          ?.withOpacity(0.4) ??
-                                      const Color(0xFF1A1A1A).withOpacity(0.4),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              right: 16,
-                              child: Text(
-                                '30m',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.color
-                                          ?.withOpacity(0.4) ??
-                                      const Color(0xFF1A1A1A).withOpacity(0.4),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                      child: const Icon(
+                        Icons.timer_outlined,
+                        color: Color(0xFF6B75F2),
+                        size: 24,
                       ),
-                      const SizedBox(height: 16),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(
-                height: 20,
-              ),
-              Text(
-                'After this, I swear I\'m done. (Seriously!)',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.color
-                          ?.withOpacity(0.6) ??
-                      const Color(0xFF1A1A1A).withOpacity(0.6),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const Spacer(),
-              // Start Button
-              Container(
-                width: double.infinity,
-                height: 64,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6B75F2), Color(0xFF8B5CF6)],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF6B75F2).withOpacity(0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Choose wisely… \nor suffer distractions!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color:
+                            Theme.of(context).textTheme.headlineMedium?.color ??
+                                const Color(0xFF1A1A1A),
+                        letterSpacing: -0.5,
+                      ),
                     ),
                   ],
                 ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: () {
-                      HapticFeedback.mediumImpact();
-                      controller.startCountdown();
-                    },
-                    child: Center(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.play_arrow_rounded,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Start Timer And Open ${controller.displayAppName}',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                        ],
+                const SizedBox(height: 80),
+                // Timer Slider Section
+                Material(
+                  color: Theme.of(context).cardColor,
+                  elevation: 8,
+                  shadowColor: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
+                  shape: const SmoothRectangleBorder(
+                    borderRadius: SmoothBorderRadius.all(
+                      SmoothRadius(
+                        cornerRadius: 32,
+                        cornerSmoothing: 1,
                       ),
                     ),
                   ),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        Obx(
+                          () => ModernTimeSlider(
+                            value: controller.selectedMinutes.value,
+                            onChanged: (v) =>
+                                controller.selectedMinutes.value = v,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // Time indicators positioned at arc endpoints
+                        SizedBox(
+                          height: 16,
+                          child: Stack(
+                            children: [
+                              Positioned(
+                                left: 16,
+                                child: Text(
+                                  '1m',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.color
+                                            ?.withOpacity(0.4) ??
+                                        const Color(0xFF1A1A1A)
+                                            .withOpacity(0.4),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                right: 16,
+                                child: Text(
+                                  '30m',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.color
+                                            ?.withOpacity(0.4) ??
+                                        const Color(0xFF1A1A1A)
+                                            .withOpacity(0.4),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 40),
-            ],
+                const SizedBox(
+                  height: 20,
+                ),
+                Text(
+                  'After this, I swear I\'m done. (Seriously!)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.color
+                            ?.withOpacity(0.6) ??
+                        const Color(0xFF1A1A1A).withOpacity(0.6),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const Spacer(),
+                // Start Button
+                ElevatedButton.icon(
+                  icon: const Icon(
+                    Icons.play_arrow_rounded,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                  onPressed: () {
+                    HapticFeedback.mediumImpact();
+                    controller.startCountdown();
+                    // Minimize Detach app to background after starting timer
+                    _minimizeAppToBackground();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    shape: const SmoothRectangleBorder(
+                      borderRadius: SmoothBorderRadius.all(
+                        SmoothRadius(cornerRadius: 8, cornerSmoothing: 1),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    minimumSize: const Size(double.infinity, 64),
+                  ),
+                  label: Text(
+                    'Start Timer And Open ${controller.displayAppName}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ),
@@ -199,11 +205,13 @@ class TimerView extends GetView<PauseController> {
 class ModernTimeSlider extends StatefulWidget {
   final int value;
   final ValueChanged<int> onChanged;
+
   const ModernTimeSlider({
     super.key,
     required this.value,
     required this.onChanged,
   });
+
   @override
   State<ModernTimeSlider> createState() => _ModernTimeSliderState();
 }
@@ -214,6 +222,7 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
   final _sliderKey = GlobalKey();
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+
   @override
   void initState() {
     _value = widget.value;
@@ -304,7 +313,7 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF6B75F2).withOpacity(0.2),
+                            color: const Color(0xFF6B75F2),
                             blurRadius: 20,
                             offset: const Offset(0, 8),
                           ),
@@ -317,8 +326,11 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
                           children: [
                             Text(
                               '${_value}',
-                              style: const TextStyle(
-                                color: Color(0xFF6B75F2),
+                              style: TextStyle(
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.white
+                                    : const Color(0xFF6B75F2),
                                 fontSize: 36,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: -0.5,
@@ -327,10 +339,13 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 2),
-                            const Text(
+                            Text(
                               'minutes',
                               style: TextStyle(
-                                color: Color(0xFF6B75F2),
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.white
+                                    : const Color(0xFF6B75F2),
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 height: 1.0,
@@ -382,7 +397,9 @@ class _ModernTrackPainter extends CustomPainter {
 
 class _ModernProgressPainter extends CustomPainter {
   final double progress;
+
   _ModernProgressPainter(this.progress);
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height);
@@ -412,7 +429,9 @@ class _ModernProgressPainter extends CustomPainter {
 
 class _ModernHandlePainter extends CustomPainter {
   final double progress;
+
   _ModernHandlePainter(this.progress);
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height);

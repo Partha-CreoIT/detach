@@ -47,11 +47,42 @@ class PlatformService {
     } catch (e) {}
   }
 
+  /// Launch an app with a timer that runs on Android
+  static Future<void> launchAppWithTimer(
+      String packageName, int durationSeconds) async {
+    try {
+      await _channel.invokeMethod('launchAppWithTimer', {
+        'packageName': packageName,
+        'durationSeconds': durationSeconds,
+      });
+    } catch (e) {
+      print('Error launching app with timer $packageName: $e');
+      rethrow;
+    }
+  }
+
+  /// Launch an app with a timer using the pause channel (when app opens directly to PauseActivity)
+  static Future<void> launchAppWithTimerViaPause(
+      String packageName, int durationSeconds) async {
+    try {
+      await const MethodChannel('com.detach.app/pause')
+          .invokeMethod('launchAppWithTimer', {
+        'packageName': packageName,
+        'durationSeconds': durationSeconds,
+      });
+    } catch (e) {
+      print(
+          'Error launching app with timer via pause channel $packageName: $e');
+      rethrow;
+    }
+  }
+
   static Future<void> launchApp(String packageName) async {
     try {
       await _channel.invokeMethod('launchApp', {'packageName': packageName});
     } catch (e) {
-      // Handle error
+      print('Error launching app $packageName: $e');
+      rethrow; // Re-throw to let calling code handle it
     }
   }
 
@@ -99,6 +130,30 @@ class PlatformService {
     }
   }
 
+  /// Force restart the blocker service
+  static Future<void> forceRestartBlockerService() async {
+    try {
+      await _channel.invokeMethod('forceRestartBlockerService');
+    } catch (e) {
+      print('Error force restarting blocker service: $e');
+    }
+  }
+
+  /// Check if the service has proper permissions and is persistent
+  static Future<Map<String, dynamic>> checkServiceHealth() async {
+    try {
+      final result = await _channel.invokeMethod('checkServiceHealth');
+      return Map<String, dynamic>.from(result ?? {});
+    } catch (e) {
+      return {
+        'isRunning': false,
+        'hasPermissions': false,
+        'isPersistent': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
   /// Get the current list of blocked apps
   static Future<List<String>> getBlockedApps() async {
     try {
@@ -114,5 +169,36 @@ class PlatformService {
     try {
       await _channel.invokeMethod('closeApp');
     } catch (e) {}
+  }
+
+  /// Notify the native side that an app was blocked
+  static Future<void> notifyAppBlocked(String packageName) async {
+    try {
+      await _channel.invokeMethod('notifyAppBlocked', {
+        'packageName': packageName,
+      });
+    } catch (e) {}
+  }
+
+  /// Test the pause screen launch
+  static Future<void> testPauseScreen(String packageName) async {
+    try {
+      await _channel.invokeMethod('testPauseScreen', {
+        'packageName': packageName,
+      });
+    } catch (e) {
+      print('Error testing pause screen: $e');
+    }
+  }
+
+  /// Clear the pause flag for debugging purposes
+  static Future<void> clearPauseFlag([String? packageName]) async {
+    try {
+      await _channel.invokeMethod('clearPauseFlag', {
+        'packageName': packageName,
+      });
+    } catch (e) {
+      print('Error clearing pause flag: $e');
+    }
   }
 }

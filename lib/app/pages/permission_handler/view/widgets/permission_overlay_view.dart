@@ -75,24 +75,27 @@ class PermissionOverlayView extends GetView<PermissionController> {
             ],
           ),
           SizedBox(
-            width: double.infinity,
+            width: double.maxFinite,
             child: ElevatedButton.icon(
               icon: const Icon(Icons.layers),
               label: const Text(
                 'Grant Overlay Permission',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600),
               ),
               onPressed: () async {
                 await controller.openOverlaySettings();
                 // Reset permission check so it will re-check when user returns
                 controller.resetPermissionCheck();
               },
-              style: ElevatedButton.styleFrom(
-                shape: SmoothRectangleBorder(
+              style: FilledButton.styleFrom(
+                shape: const SmoothRectangleBorder(
                   borderRadius: SmoothBorderRadius.all(
-                    SmoothRadius(cornerRadius: 16, cornerSmoothing: 1),
+                    SmoothRadius(cornerRadius: 8, cornerSmoothing: 1),
                   ),
                 ),
+                padding: const EdgeInsets.symmetric(vertical: 16),
               ),
             ),
           ),
