@@ -17,6 +17,11 @@ class TimerView extends GetView<PauseController> {
 
   @override
   Widget build(BuildContext context) {
+    print('=== TimerView.build() called ===');
+    print('This should only show when user clicks "Continue on App" button');
+    print('controller.showTimer.value: ${controller.showTimer.value}');
+    print('controller.showButtons.value: ${controller.showButtons.value}');
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: AnnotatedRegion<SystemUiOverlayStyle>(

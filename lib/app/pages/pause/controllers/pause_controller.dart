@@ -75,8 +75,25 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   }
 
   void startCountdown() async {
+    print('=== startCountdown() called ===');
+    print('Current showTimer.value: ${showTimer.value}');
+    print('Current showButtons.value: ${showButtons.value}');
+
+    // Check if this is a timer expiration case - if so, don't start countdown
+    final route = Get.rawRoute?.toString() ?? '';
+    bool timerExpired = route.contains('timer_expired=true') ||
+        Get.parameters['timer_expired'] == 'true';
+
+    if (timerExpired) {
+      print(
+          'WARNING: startCountdown() called during timer expiration - this should not happen!');
+      print('Ignoring startCountdown request during timer expiration');
+      return; // Don't proceed with countdown
+    }
+
     try {
       if (lockedPackageName == null) {
+        print('No locked package name, cannot start countdown');
         return;
       }
 
@@ -156,6 +173,22 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   }
 
   void continueApp() async {
+    print('=== continueApp() called ===');
+    print('Current showTimer.value: ${showTimer.value}');
+    print('Current showButtons.value: ${showButtons.value}');
+
+    // Check if this is a timer expiration case - if so, don't show timer view
+    final route = Get.rawRoute?.toString() ?? '';
+    bool timerExpired = route.contains('timer_expired=true') ||
+        Get.parameters['timer_expired'] == 'true';
+
+    if (timerExpired) {
+      print(
+          'WARNING: continueApp() called during timer expiration - this should not happen!');
+      print('Keeping showTimer.value = false to show pause screen instead');
+      return; // Don't proceed with timer view
+    }
+
     AnalyticsService.to.logPauseSessionInterrupted();
 
     // Reset the pause flag since the user is taking action
@@ -168,11 +201,15 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     }
 
     // Transition to timer view
+    print('Setting showTimer.value = true');
     showTimer.value = true;
+    print('Setting showButtons.value = false');
     showButtons.value = false; // Hide buttons when showing timer
     progressController.value = 0;
 
     print('Transitioning to timer view for ${lockedPackageName}');
+    print('Final showTimer.value: ${showTimer.value}');
+    print('Final showButtons.value: ${showButtons.value}');
   }
 
   RxInt attemptsToday = 0.obs;
@@ -180,6 +217,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   RxString appName = ''.obs;
   List<AppInfo> allApps = [];
   RxBool showButtons = false.obs;
+  bool _isTimerExpired = false; // Track timer expiration state
 
   @override
   void onInit() {
@@ -237,10 +275,14 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     if (route.contains('timer_expired=true') ||
         Get.parameters['timer_expired'] == 'true') {
       timerExpired = true;
+      _isTimerExpired = true; // Set the flag
     }
 
     print('lockedPackageName: $lockedPackageName');
     print('timerExpired: $timerExpired');
+    print('_isTimerExpired: $_isTimerExpired');
+    print('Initial showTimer.value: ${showTimer.value}');
+    print('Initial showButtons.value: ${showButtons.value}');
 
     if (lockedPackageName == null) {
       print('No package name provided, redirecting to home');
@@ -252,8 +294,8 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
 
     if (timerExpired) {
       print('Timer expired detected from Android - showing pause flow');
-      showTimer.value = false;
-      showButtons.value = false; // Start with water animation
+      // Force the correct state for timer expiration
+      _forcePauseScreenState();
 
       // Ensure we start fresh with water animation
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -263,9 +305,14 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
       });
     } else {
       print('Normal pause flow - showing water animation');
+      print('Setting showTimer.value = false for normal flow');
       showTimer.value = false;
+      print('Setting showButtons.value = false for normal flow');
       showButtons.value = false; // Start with water animation
     }
+
+    print('After initialization - showTimer.value: ${showTimer.value}');
+    print('After initialization - showButtons.value: ${showButtons.value}');
 
     if (lockedPackageName != null) {
       checkEarlyClose(lockedPackageName!);
@@ -283,11 +330,16 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     );
     waterController.forward();
     waterController.addStatusListener((status) {
+      print('=== Water animation status changed: $status ===');
       if (status == AnimationStatus.completed) {
+        print('Water animation completed, reversing...');
         waterController.reverse();
       }
       if (status == AnimationStatus.dismissed) {
+        print('Water animation dismissed, showing buttons');
+        print('Setting showButtons.value = true');
         showButtons.value = true;
+        print('Final showButtons.value: ${showButtons.value}');
       }
     });
 
@@ -301,54 +353,117 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
       });
 
     _initializeAppData();
+
+    // Add periodic check to ensure correct state during timer expiration
+    if (_isTimerExpired) {
+      Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (showTimer.value && _isTimerExpired) {
+          print(
+              'WARNING: showTimer.value is true during timer expiration - fixing...');
+          _forcePauseScreenState();
+        }
+        // Stop the timer after 10 seconds
+        if (timer.tick >= 10) {
+          timer.cancel();
+        }
+      });
+    }
+  }
+
+  void _forcePauseScreenState() {
+    print('=== _forcePauseScreenState called ===');
+    print('Forcing showTimer.value = false');
+    showTimer.value = false;
+    print('Forcing showButtons.value = false');
+    showButtons.value = false;
+    print(
+        'Final state - showTimer.value: ${showTimer.value}, showButtons.value: ${showButtons.value}');
   }
 
   void _handleTimerExpiration() {
     print('=== _handleTimerExpiration called ===');
-    // Show timer expired UI state - this should show the pause screen (water animation + buttons)
-    showTimer.value = false;
-    showButtons.value = false; // Start with water animation
+    print('Current showTimer.value: ${showTimer.value}');
+    print('Current showButtons.value: ${showButtons.value}');
+
+    _isTimerExpired = true; // Set the flag
+
+    // Force the correct state for timer expiration
+    _forcePauseScreenState();
 
     // Ensure water animation starts fresh
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (waterController.status != AnimationStatus.forward) {
+        print('Starting water animation for timer expiration');
         waterController.forward();
+      } else {
+        print('Water animation already running for timer expiration');
       }
     });
 
     print('Timer expired UI state set - showing pause screen flow');
+    print('Final showTimer.value: ${showTimer.value}');
+    print('Final showButtons.value: ${showButtons.value}');
   }
 
   void _initializeFromAndroid(String packageName, bool isTimerExpired) {
     print('=== _initializeFromAndroid called ===');
     print('Package: $packageName, Timer expired: $isTimerExpired');
+    print('Current showTimer.value: ${showTimer.value}');
+    print('Current showButtons.value: ${showButtons.value}');
 
     // Set the package name
     lockedPackageName = packageName;
 
     if (isTimerExpired) {
       print('Timer expired detected from Android - showing pause flow');
-      showTimer.value = false;
-      showButtons.value = false; // Start with water animation
+      _isTimerExpired = true; // Set the flag
+      // Force the correct state for timer expiration
+      _forcePauseScreenState();
 
       // Ensure we start fresh with water animation
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (waterController.status != AnimationStatus.forward) {
+          print('Starting water animation for timer expiration from Android');
           waterController.forward();
+        } else {
+          print(
+              'Water animation already running for timer expiration from Android');
+        }
+      });
+
+      // Add periodic check to ensure correct state during timer expiration
+      Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (showTimer.value && _isTimerExpired) {
+          print(
+              'WARNING: showTimer.value is true during timer expiration - fixing...');
+          _forcePauseScreenState();
+        }
+        // Stop the timer after 10 seconds
+        if (timer.tick >= 10) {
+          timer.cancel();
         }
       });
     } else {
       print('Normal pause flow - showing water animation');
+      print('Setting showTimer.value = false for normal flow');
       showTimer.value = false;
+      print('Setting showButtons.value = false for normal flow');
       showButtons.value = false; // Start with water animation
     }
+
+    print('After _initializeFromAndroid - showTimer.value: ${showTimer.value}');
+    print(
+        'After _initializeFromAndroid - showButtons.value: ${showButtons.value}');
 
     // Initialize app data
     _initializeAppData();
 
     // Start water animation if not already running
     if (waterController.status != AnimationStatus.forward) {
+      print('Starting water animation from _initializeFromAndroid');
       waterController.forward();
+    } else {
+      print('Water animation already running from _initializeFromAndroid');
     }
 
     // Log analytics

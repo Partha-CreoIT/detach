@@ -12,9 +12,16 @@ class PauseView extends GetView<PauseController> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
+      print('=== PauseView.build() called ===');
+      print('controller.showTimer.value: ${controller.showTimer.value}');
+      print('controller.showButtons.value: ${controller.showButtons.value}');
+
       if (controller.showTimer.value) {
+        print('Showing TimerView');
         return const TimerView();
       }
+
+      print('Showing PauseView (water animation + buttons)');
       return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: AnnotatedRegion<SystemUiOverlayStyle>(
