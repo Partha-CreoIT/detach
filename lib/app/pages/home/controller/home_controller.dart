@@ -42,6 +42,17 @@ class HomeController extends GetxController with WidgetsBindingObserver {
       Future.delayed(const Duration(milliseconds: 500), () {
         _refreshBlockedApps();
       });
+    } else if (state == AppLifecycleState.detached) {
+      // App is being killed, notify Android service to stop all timers
+      _notifyAppKilled();
+    }
+  }
+
+  void _notifyAppKilled() async {
+    try {
+      await PlatformService.notifyAppKilled();
+    } catch (e) {
+      // Handle error silently
     }
   }
 
@@ -300,7 +311,6 @@ class HomeController extends GetxController with WidgetsBindingObserver {
     final prefs = await SharedPreferences.getInstance();
     final blockedApps = prefs.getStringList("blocked_apps") ?? [];
 
-
     // Update the selected apps list if it's different
     if (!_areListsEqual(selectedAppPackages, blockedApps)) {
       selectedAppPackages.assignAll(blockedApps);
@@ -309,9 +319,7 @@ class HomeController extends GetxController with WidgetsBindingObserver {
       selectedAppPackages.refresh();
       allApps.refresh();
       filteredApps.refresh();
-
-    } else {
-    }
+    } else {}
   }
 
   bool _areListsEqual(List<String> list1, List<String> list2) {

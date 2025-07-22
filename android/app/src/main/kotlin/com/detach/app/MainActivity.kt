@@ -243,6 +243,10 @@ class MainActivity : FlutterActivity() {
                     }
                     result.success(null)
                 }
+                "notifyAppKilled" -> {
+                    notifyAppKilled()
+                    result.success(null)
+                }
                 "testPauseScreen" -> {
                     val packageName = call.argument<String>("packageName")
                     if (packageName != null) {
@@ -419,6 +423,12 @@ class MainActivity : FlutterActivity() {
         // Send broadcast to AppLaunchInterceptor to notify that an app was blocked
         val intent = Intent("com.example.detach.APP_BLOCKED")
         intent.putExtra("package_name", packageName)
+        sendBroadcast(intent)
+    }
+
+    private fun notifyAppKilled() {
+        // Send broadcast to AppLaunchInterceptor to notify that Flutter app is being killed
+        val intent = Intent("com.example.detach.FLUTTER_APP_KILLED")
         sendBroadcast(intent)
     }
 

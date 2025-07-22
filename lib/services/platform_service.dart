@@ -176,6 +176,13 @@ class PlatformService {
     } catch (e) {}
   }
 
+  /// Notify the native side that the Flutter app is being killed
+  static Future<void> notifyAppKilled() async {
+    try {
+      await _channel.invokeMethod('notifyAppKilled');
+    } catch (e) {}
+  }
+
   /// Test the pause screen launch
   static Future<void> testPauseScreen(String packageName) async {
     try {
