@@ -5,6 +5,7 @@ import '../../controllers/pause_controller.dart';
 import 'dart:math';
 import 'package:flutter/services.dart';
 import 'package:detach/services/theme_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class TimerView extends GetView<PauseController> {
   const TimerView({super.key});
@@ -17,6 +18,7 @@ class TimerView extends GetView<PauseController> {
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: AnnotatedRegion<SystemUiOverlayStyle>(
@@ -57,12 +59,10 @@ class TimerView extends GetView<PauseController> {
                     Text(
                       'Choose wisely… \nor suffer distractions!',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: GoogleFonts.inter(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color:
-                            Theme.of(context).textTheme.headlineMedium?.color ??
-                                const Color(0xFF1A1A1A),
+                        color: Theme.of(context).colorScheme.onSurface,
                         letterSpacing: -0.5,
                       ),
                     ),
@@ -105,7 +105,7 @@ class TimerView extends GetView<PauseController> {
                                 left: 16,
                                 child: Text(
                                   '1m',
-                                  style: TextStyle(
+                                  style: GoogleFonts.inter(
                                     fontSize: 14,
                                     color: Theme.of(context)
                                             .textTheme
@@ -122,7 +122,7 @@ class TimerView extends GetView<PauseController> {
                                 right: 16,
                                 child: Text(
                                   '30m',
-                                  style: TextStyle(
+                                  style: GoogleFonts.inter(
                                     fontSize: 14,
                                     color: Theme.of(context)
                                             .textTheme
@@ -148,7 +148,7 @@ class TimerView extends GetView<PauseController> {
                 ),
                 Text(
                   'After this, I swear I\'m done. (Seriously!)',
-                  style: TextStyle(
+                  style: GoogleFonts.inter(
                     fontSize: 16,
                     color: Theme.of(context)
                             .textTheme
@@ -184,7 +184,7 @@ class TimerView extends GetView<PauseController> {
                   ),
                   label: Text(
                     'Start Timer And Open ${controller.displayAppName}',
-                    style: const TextStyle(
+                    style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -326,7 +326,7 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
                           children: [
                             Text(
                               '${_value}',
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 color: Theme.of(context).brightness ==
                                         Brightness.dark
                                     ? Colors.white
@@ -341,7 +341,7 @@ class _ModernTimeSliderState extends State<ModernTimeSlider>
                             const SizedBox(height: 2),
                             Text(
                               'minutes',
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 color: Theme.of(context).brightness ==
                                         Brightness.dark
                                     ? Colors.white

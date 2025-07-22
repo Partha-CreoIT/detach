@@ -56,7 +56,6 @@ class PlatformService {
         'durationSeconds': durationSeconds,
       });
     } catch (e) {
-      print('Error launching app with timer $packageName: $e');
       rethrow;
     }
   }
@@ -71,8 +70,6 @@ class PlatformService {
         'durationSeconds': durationSeconds,
       });
     } catch (e) {
-      print(
-          'Error launching app with timer via pause channel $packageName: $e');
       rethrow;
     }
   }
@@ -81,7 +78,6 @@ class PlatformService {
     try {
       await _channel.invokeMethod('launchApp', {'packageName': packageName});
     } catch (e) {
-      print('Error launching app $packageName: $e');
       rethrow; // Re-throw to let calling code handle it
     }
   }
@@ -135,7 +131,7 @@ class PlatformService {
     try {
       await _channel.invokeMethod('forceRestartBlockerService');
     } catch (e) {
-      print('Error force restarting blocker service: $e');
+      // Handle error silently
     }
   }
 
@@ -180,6 +176,13 @@ class PlatformService {
     } catch (e) {}
   }
 
+  /// Notify the native side that the Flutter app is being killed
+  static Future<void> notifyAppKilled() async {
+    try {
+      await _channel.invokeMethod('notifyAppKilled');
+    } catch (e) {}
+  }
+
   /// Test the pause screen launch
   static Future<void> testPauseScreen(String packageName) async {
     try {
@@ -187,7 +190,7 @@ class PlatformService {
         'packageName': packageName,
       });
     } catch (e) {
-      print('Error testing pause screen: $e');
+      // Handle error silently
     }
   }
 
@@ -198,7 +201,7 @@ class PlatformService {
         'packageName': packageName,
       });
     } catch (e) {
-      print('Error clearing pause flag: $e');
+      // Handle error silently
     }
   }
 }

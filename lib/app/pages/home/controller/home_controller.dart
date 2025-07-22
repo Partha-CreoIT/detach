@@ -9,7 +9,7 @@ import 'package:installed_apps/installed_apps.dart';
 import 'package:detach/app/routes/app_routes.dart';
 import 'package:figma_squircle/figma_squircle.dart';
 
-class HomeController extends GetxController {
+class HomeController extends GetxController with WidgetsBindingObserver {
   final RxInt limitedAppsCount = 0.obs;
   final PermissionService _permissionService = PermissionService();
   // App list functionality
@@ -17,13 +17,113 @@ class HomeController extends GetxController {
   final RxList<String> selectedAppPackages = <String>[].obs;
   final RxList<AppInfo> filteredApps = <AppInfo>[].obs;
   final RxBool isLoading = true.obs;
+
+  // Search query
+  final RxString searchQuery = ''.obs;
+
+  // Apps to exclude (system apps and specific packages)
+  final Set<String> _excludedPackages = {
+    // Google Play Services and related
+    'com.google.android.gms',
+    'com.google.android.gsf',
+    'com.google.android.gms.policy_sidecar_aps',
+    'com.google.android.partnersetup',
+
+    // Android Auto
+    'com.google.android.projection.gearhead',
+    'com.android.car.dialer',
+    'com.android.car.media',
+
+    // System apps
+    'com.android.vending', // Play Store (optional - remove if you want to include)
+    'com.android.providers.media',
+    'com.android.externalstorage',
+    'com.android.providers.downloads',
+    'com.android.providers.contacts',
+    'com.android.providers.calendar',
+    'com.android.systemui',
+    'com.android.settings',
+    'com.android.launcher',
+    'com.android.launcher3',
+
+    // WebView and TTS
+    'com.google.android.webview',
+    'com.android.webview',
+    'com.google.android.tts',
+
+    // Other system components
+    'com.android.keychain',
+    'com.android.certinstaller',
+    'com.android.printspooler',
+    'com.android.bluetoothmidiservice',
+    'com.android.nfc',
+    'com.android.se',
+
+    // Samsung specific (if needed)
+    'com.samsung.android.bixby.agent',
+    'com.samsung.android.app.spage',
+    'com.sec.android.app.launcher',
+
+    // Add more packages as needed
+  };
+
+  // Apps to always include even if they're system apps
+  final Set<String> _alwaysInclude = {
+    'com.google.android.youtube',
+    'com.android.camera',
+    'com.android.camera2',
+    'com.android.gallery3d',
+    'com.android.calendar',
+    'com.android.contacts',
+    'com.google.android.dialer',
+    'com.android.dialer',
+    'com.android.mms',
+    'com.google.android.apps.messaging',
+    'com.android.calculator2',
+    'com.google.android.calculator',
+    'com.android.music',
+    'com.google.android.music',
+    'com.android.chrome',
+    'com.google.android.apps.maps',
+    'com.google.android.gm', // Gmail
+  };
+
   @override
   void onInit() {
     super.onInit();
+    WidgetsBinding.instance.addObserver(this);
     _loadLimitedAppsCount();
     _loadBlockedAppsAndApps();
     _logScreenView();
     _startBlockerServiceIfNeeded();
+  }
+
+  @override
+  void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.onClose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh blocked apps list when app is resumed with a small delay
+      // to ensure Android service has time to update SharedPreferences
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _refreshBlockedApps();
+      });
+    } else if (state == AppLifecycleState.detached) {
+      // App is being killed, notify Android service to stop all timers
+      _notifyAppKilled();
+    }
+  }
+
+  void _notifyAppKilled() async {
+    try {
+      await PlatformService.notifyAppKilled();
+    } catch (e) {
+      // Handle error silently
+    }
   }
 
   Future<void> _loadLimitedAppsCount() async {
@@ -36,8 +136,24 @@ class HomeController extends GetxController {
     // Load previously blocked apps from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     final blockedApps = prefs.getStringList("blocked_apps") ?? [];
-    selectedAppPackages.assignAll(blockedApps);
+
+    // Also get blocked apps from Android service to compare
+    try {
+      final androidBlockedApps = await PlatformService.getBlockedApps();
+
+      // If Android service has more apps than SharedPreferences, use Android service data
+      if (androidBlockedApps.length > blockedApps.length) {
+        selectedAppPackages.assignAll(androidBlockedApps);
+      } else {
+        selectedAppPackages.assignAll(blockedApps);
+      }
+    } catch (e) {
+      selectedAppPackages.assignAll(blockedApps);
+    }
     await _loadApps();
+
+    // Add a small delay to ensure allApps is fully populated
+    await Future.delayed(const Duration(milliseconds: 100));
   }
 
   Future<void> _startBlockerServiceIfNeeded() async {
@@ -54,22 +170,121 @@ class HomeController extends GetxController {
   Future<void> _loadApps() async {
     try {
       isLoading.value = true;
+
       List<AppInfo> installedApps = await InstalledApps.getInstalledApps(
-        true,
+        false,
         true,
       );
-      // Filter out the current app (Detach) from the list
-      installedApps = installedApps
-          .where((app) => app.packageName != 'com.detach.app')
-          .toList();
-      installedApps.sort(
+
+      // User-facing Google apps allow-list
+      final googleUserApps = [
+        'com.google.android.gm', // Gmail
+        'com.google.android.youtube',
+        'com.google.android.apps.maps',
+        'com.google.android.apps.photos',
+        'com.google.android.apps.docs',
+        'com.google.android.apps.meet',
+        'com.google.android.apps.calendar',
+        'com.google.android.keep',
+        'com.google.android.apps.tachyon', // Meet/Duo
+        'com.android.chrome',
+        // Add more as needed
+      ];
+
+      // Allow-list for some Android/Samsung apps
+      final allowList = [
+        'com.android.chrome',
+        'com.android.camera',
+        'com.android.calculator2',
+        'com.android.gallery3d',
+        'com.android.dialer',
+        'com.android.contacts',
+        'com.android.mms',
+        'com.android.music',
+        'com.android.calendar',
+        // Add more as needed
+      ];
+
+      List<AppInfo> filteredInstalledApps = [];
+      for (AppInfo app in installedApps) {
+        if (app.packageName == 'com.detach.app') continue;
+
+        // Show only user-facing Google apps and allow-list
+        if (googleUserApps.contains(app.packageName) ||
+            allowList.contains(app.packageName)) {
+          filteredInstalledApps.add(app);
+          continue;
+        }
+
+        // Exclude all system/service packages
+        if (app.packageName.startsWith('com.android.') ||
+            app.packageName == 'android' ||
+            app.packageName.startsWith('com.ondevicepersonalization') ||
+            app.packageName.startsWith('com.google.android.') ||
+            app.packageName.startsWith('com.google.android.apps.')) {
+          continue;
+        }
+
+        // Exclude Samsung/sec unless in allow-list
+        if (app.packageName.startsWith('com.samsung.') ||
+            app.packageName.startsWith('com.sec.')) {
+          if (allowList.contains(app.packageName)) {
+            filteredInstalledApps.add(app);
+          }
+          continue;
+        }
+
+        // Otherwise, include user apps
+        filteredInstalledApps.add(app);
+      }
+
+      // Sort apps alphabetically
+      filteredInstalledApps.sort(
         (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
       );
-      allApps.assignAll(installedApps);
-      filteredApps.assignAll(installedApps);
+
+      allApps.assignAll(filteredInstalledApps);
+      filteredApps.assignAll(filteredInstalledApps);
+    } catch (e) {
+      print('Error loading apps: $e');
     } finally {
       isLoading.value = false;
     }
+  }
+
+  // Helper method to check if an app has a launchable intent
+  bool _hasLaunchableIntent(AppInfo app) {
+    // Basic heuristics to determine if an app is launchable
+    // Apps without proper names or with system-like names are probably not user-launchable
+    if (app.name.isEmpty ||
+        app.name.toLowerCase().contains('system') ||
+        app.name.toLowerCase().contains('service') ||
+        app.name.toLowerCase().contains('framework') ||
+        app.packageName.contains('.provider') ||
+        app.packageName.contains('.service') ||
+        app.packageName.endsWith('.stub')) {
+      return false;
+    }
+
+    return true;
+  }
+
+  // Method to manually add/remove packages from exclusion list
+  void addToExcludedPackages(String packageName) {
+    _excludedPackages.add(packageName);
+  }
+
+  void removeFromExcludedPackages(String packageName) {
+    _excludedPackages.remove(packageName);
+  }
+
+  // Method to manually add/remove packages from always include list
+  void addToAlwaysInclude(String packageName) {
+    _alwaysInclude.add(packageName);
+  }
+
+  void removeFromAlwaysInclude(String packageName) {
+    _alwaysInclude.remove(packageName);
   }
 
   void toggleAppSelection(AppInfo app) async {
@@ -84,7 +299,6 @@ class HomeController extends GetxController {
 
         if (!hasAllPermissions) {
           // Show permission bottom sheet and don't lock the app
-
           _showPermissionBottomSheet();
           return;
         }
@@ -106,19 +320,6 @@ class HomeController extends GetxController {
     filteredApps.refresh();
     // Save to SharedPreferences and update the service
     await saveApps();
-  }
-
-  Future<void> _performAppBlocking(AppInfo app) async {
-    selectedAppPackages.add(app.packageName);
-    AnalyticsService.to.logAppBlocked(app.name);
-    // Save to SharedPreferences immediately
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList("blocked_apps", selectedAppPackages.toList());
-    // Update limited apps count
-    limitedAppsCount.value = selectedAppPackages.length;
-    // Trigger UI update
-    selectedAppPackages.refresh();
-    allApps.refresh();
   }
 
   Future<bool> _checkAllPermissions() async {
@@ -248,8 +449,6 @@ class HomeController extends GetxController {
     return searchQuery.isNotEmpty;
   }
 
-  // Search query
-  final RxString searchQuery = ''.obs;
   void clearAllSelected() async {
     selectedAppPackages.clear();
     selectedAppPackages.refresh();
@@ -273,10 +472,43 @@ class HomeController extends GetxController {
     );
   }
 
+  Future<void> _refreshBlockedApps() async {
+    // Load current blocked apps from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final blockedApps = prefs.getStringList("blocked_apps") ?? [];
+
+    // Update the selected apps list if it's different
+    if (!_areListsEqual(selectedAppPackages, blockedApps)) {
+      selectedAppPackages.assignAll(blockedApps);
+      limitedAppsCount.value = blockedApps.length;
+      // Trigger UI update
+      selectedAppPackages.refresh();
+      allApps.refresh();
+      filteredApps.refresh();
+    }
+  }
+
+  bool _areListsEqual(List<String> list1, List<String> list2) {
+    if (list1.length != list2.length) return false;
+    for (int i = 0; i < list1.length; i++) {
+      if (list1[i] != list2[i]) return false;
+    }
+    return true;
+  }
+
   // Computed getters for the UI
   List<AppInfo> get selectedApps {
     return allApps
         .where((app) => selectedAppPackages.contains(app.packageName))
         .toList();
   }
+
+  // Method to refresh apps list (useful for debugging or manual refresh)
+  Future<void> refreshAppsList() async {
+    await _loadApps();
+  }
+
+  // Getters for debugging
+  Set<String> get excludedPackages => Set.from(_excludedPackages);
+  Set<String> get alwaysIncludePackages => Set.from(_alwaysInclude);
 }

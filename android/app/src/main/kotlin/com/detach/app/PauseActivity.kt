@@ -48,10 +48,6 @@ class PauseActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        Log.d(TAG, "=== PauseActivity.onCreate() called ===")
-        Log.d(TAG, "Intent extras: ${intent.extras}")
-        Log.d(TAG, "Intent action: ${intent.action}")
-
         // Disable animations for fresh start
         overridePendingTransition(0, 0)
 
@@ -79,11 +75,43 @@ class PauseActivity : FlutterActivity() {
         // Check if this is a timer expiration case
         val timerExpired = intent.getBooleanExtra("timer_expired", false)
         if (timerExpired) {
-            Log.d(TAG, "PauseActivity opened due to timer expiration - fresh start")
             // Don't start a new timer, just show the pause screen
         } else if (sessionKey != null && startTime > 0 && duration > 0) {
             saveSessionData()
             startTimer()
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        
+        // Handle new intent data when activity is resumed
+        val packageName = intent.getStringExtra("blocked_app_package")
+        val timerExpired = intent.getBooleanExtra("timer_expired", false)
+        val timerState = intent.getStringExtra("timer_state")
+        
+        // Send data to Flutter if engine is ready
+        if (::methodChannel.isInitialized && packageName != null) {
+            handler.postDelayed({
+                try {
+                    methodChannel.invokeMethod("initializePause", mapOf(
+                        "packageName" to packageName,
+                        "timerExpired" to timerExpired,
+                        "timerState" to timerState
+                    ))
+                    
+                    // If timer expired, send the timer expired notification
+                    if (timerExpired) {
+                        methodChannel.invokeMethod("timerExpired", mapOf(
+                            "packageName" to packageName,
+                            "timerState" to timerState
+                        ))
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error sending intent data to Flutter: ${e.message}", e)
+                }
+            }, 500)
         }
     }
 
@@ -253,10 +281,6 @@ class PauseActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         
-        Log.e(TAG, "=== configureFlutterEngine called ===")
-        Log.e(TAG, "Intent extras: ${intent.extras}")
-        Log.e(TAG, "Intent action: ${intent.action}")
-
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
         
         // Get intent data
@@ -264,22 +288,15 @@ class PauseActivity : FlutterActivity() {
         val timerExpired = intent.getBooleanExtra("timer_expired", false)
         val timerState = intent.getStringExtra("timer_state")
         
-        Log.e(TAG, "Package name: $packageName")
-        Log.e(TAG, "Timer expired: $timerExpired")
-        Log.e(TAG, "Timer state: $timerState")
-        
         // Send initialization data to Flutter
         if (packageName != null) {
-            Log.e(TAG, "Sending initialization data to Flutter...")
             handler.postDelayed({
                 try {
-                    Log.e(TAG, "Attempting to send initialization data...")
                     methodChannel.invokeMethod("initializePause", mapOf(
                         "packageName" to packageName,
                         "timerExpired" to timerExpired,
                         "timerState" to timerState
                     ))
-                    Log.e(TAG, "Initialization data sent to Flutter successfully")
                 } catch (e: Exception) {
                     Log.e(TAG, "Error sending initialization data: ${e.message}", e)
                 }
@@ -288,34 +305,17 @@ class PauseActivity : FlutterActivity() {
         
         // Check if this is a timer expiration case and notify Flutter
         if (timerExpired) {
-            Log.e(TAG, "Timer expired detected, notifying Flutter via method channel")
-            // Use a small delay to ensure Flutter is ready
             handler.postDelayed({
                 try {
-                    Log.e(TAG, "Attempting to send timer expired notification...")
                     methodChannel.invokeMethod("timerExpired", mapOf(
                         "packageName" to packageName,
                         "timerState" to timerState
                     ))
-                    Log.e(TAG, "Timer expired notification sent to Flutter successfully")
                 } catch (e: Exception) {
                     Log.e(TAG, "Error sending timer expired notification: ${e.message}", e)
                 }
             }, 1000) // 1 second delay
-        } else {
-            Log.e(TAG, "Not a timer expiration case")
         }
-        
-        // Test method channel communication
-        handler.postDelayed({
-            try {
-                Log.e(TAG, "Testing method channel communication...")
-                methodChannel.invokeMethod("test", mapOf("message" to "Hello from Android"))
-                Log.e(TAG, "Test method channel message sent")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error sending test method channel message: ${e.message}", e)
-            }
-        }, 2000) // 2 second delay
         
         methodChannel.setMethodCallHandler { call, result ->
             when (call.method) {
@@ -347,8 +347,6 @@ class PauseActivity : FlutterActivity() {
 
                 "launchApp" -> {
                     val packageName = call.argument<String>("packageName")
-                    Log.d(TAG, "Attempting to launch app: $packageName")
-
                     if (packageName != null) {
                         try {
                             val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
@@ -358,14 +356,11 @@ class PauseActivity : FlutterActivity() {
                                 launchIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
 
                                 startActivity(launchIntent)
-                                Log.d(TAG, "Successfully launched app: $packageName")
                                 result.success(true)
                             } else {
-                                Log.e(TAG, "Launch intent is null for package: $packageName")
                                 result.error("NO_LAUNCH_INTENT", "Cannot launch app: no launch intent", null)
                             }
                         } catch (e: Exception) {
-                            Log.e(TAG, "Error launching app $packageName: ${e.message}", e)
                             result.error("LAUNCH_ERROR", "Error launching app: ${e.message}", null)
                         }
                     } else {
@@ -378,26 +373,20 @@ class PauseActivity : FlutterActivity() {
                     val durationSeconds = call.argument<Int>("durationSeconds")
                     
                     if (packageName != null && durationSeconds != null) {
-                        Log.d(TAG, "=== PauseActivity: launchAppWithTimer called ===")
-                        Log.d(TAG, "Package: $packageName, Duration: $durationSeconds")
-                        
                         // Ensure the AppLaunchInterceptor service is running
                         val serviceIntent = Intent(this, AppLaunchInterceptor::class.java)
                         startService(serviceIntent)
-                        Log.d(TAG, "AppLaunchInterceptor service started")
                         
                         // Send to AppLaunchInterceptor to handle timer and launch
                         val launchIntent = Intent(this, AppLaunchInterceptor::class.java).apply {
                             action = "com.example.detach.LAUNCH_APP_WITH_TIMER"
-                            putExtra("package_name", packageName)  // Changed from "packageName"
-                            putExtra("duration_seconds", durationSeconds)  // Changed from "durationSeconds"
+                            putExtra("package_name", packageName)
+                            putExtra("duration_seconds", durationSeconds)
                         }
                         startService(launchIntent)
-                        Log.d(TAG, "Launch intent sent to AppLaunchInterceptor with extras: package_name=$packageName, duration_seconds=$durationSeconds")
                         
                         result.success(true)
                     } else {
-                        Log.e(TAG, "Invalid parameters: packageName=$packageName, durationSeconds=$durationSeconds")
                         result.error("INVALID_ARG", "Package name or duration is null", null)
                     }
                 }
@@ -405,32 +394,24 @@ class PauseActivity : FlutterActivity() {
                 "pauseScreenClosed" -> {
                     val packageName = call.argument<String>("package_name")
                     if (packageName != null) {
-                        Log.d(TAG, "=== PauseActivity: pauseScreenClosed called ===")
-                        Log.d(TAG, "Package: $packageName")
-                        
                         // Send broadcast to AppLaunchInterceptor
                         val broadcastIntent = Intent("com.example.detach.PAUSE_SCREEN_CLOSED").apply {
                             putExtra("package_name", packageName)
                         }
                         sendBroadcast(broadcastIntent)
-                        Log.d(TAG, "Sent PAUSE_SCREEN_CLOSED broadcast for $packageName")
                         
                         result.success(true)
                     } else {
-                        Log.e(TAG, "Package name is null in pauseScreenClosed")
                         result.error("INVALID_ARG", "Package name is null", null)
                     }
                 }
 
                 "minimizeAppToBackground" -> {
-                    Log.d(TAG, "=== PauseActivity: minimizeAppToBackground called ===")
                     try {
                         // Minimize the app to background
                         moveTaskToBack(true)
-                        Log.d(TAG, "App minimized to background successfully")
                         result.success(true)
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error minimizing app to background: ${e.message}", e)
                         result.error("MINIMIZE_ERROR", "Error minimizing app: ${e.message}", null)
                     }
                 }
@@ -445,12 +426,6 @@ class PauseActivity : FlutterActivity() {
         val timerExpired = intent.getBooleanExtra("timer_expired", false)
         val timerState = intent.getStringExtra("timer_state")
         
-        Log.e(TAG, "=== getInitialRoute called ===")
-        Log.e(TAG, "Package name from intent: $packageName")
-        Log.e(TAG, "Timer expired: $timerExpired")
-        Log.e(TAG, "Timer state: $timerState")
-        Log.e(TAG, "All intent extras: ${intent.extras}")
-        
         val route = if (packageName != null) {
             if (timerExpired) {
                 "/pause?package=$packageName&timer_expired=true&timer_state=$timerState"
@@ -461,8 +436,6 @@ class PauseActivity : FlutterActivity() {
             "/pause"
         }
         
-        Log.e(TAG, "Returning route: $route")
-        Log.e(TAG, "=== getInitialRoute completed ===")
         return route
     }
 }

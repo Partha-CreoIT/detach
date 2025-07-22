@@ -5,6 +5,7 @@ import 'package:installed_apps/app_info.dart';
 import 'package:detach/services/theme_service.dart';
 import 'widgets/info_bottom_sheet.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class HomeView extends GetView<HomeController> {
   const HomeView({super.key});
@@ -13,9 +14,13 @@ class HomeView extends GetView<HomeController> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Overview',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 28),
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.bold,
+            fontSize: 28,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -151,7 +156,7 @@ class HomeView extends GetView<HomeController> {
                           children: [
                             Text(
                               'Selected Apps (${controller.selectedApps.length})',
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                                 color: Theme.of(context).colorScheme.onSurface,
@@ -161,7 +166,10 @@ class HomeView extends GetView<HomeController> {
                             TextButton(
                               onPressed: controller.clearAllSelected,
                               style: TextButton.styleFrom(
-                                foregroundColor: const Color(0xFF1A237E),
+                                textStyle: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                               child: const Text('Clear All'),
                             ),
@@ -190,7 +198,7 @@ class HomeView extends GetView<HomeController> {
                         ),
                         child: Text(
                           'All Apps',
-                          style: TextStyle(
+                          style: GoogleFonts.inter(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Theme.of(context).colorScheme.onSurface,
@@ -227,7 +235,7 @@ class HomeView extends GetView<HomeController> {
                             const SizedBox(height: 16),
                             Text(
                               'No apps available for your search',
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w500,
                                 color: Theme.of(context).colorScheme.onSurface,
@@ -236,7 +244,7 @@ class HomeView extends GetView<HomeController> {
                             const SizedBox(height: 8),
                             Text(
                               'Try searching with different keywords',
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 fontSize: 14,
                                 color: Theme.of(
                                   context,
@@ -262,10 +270,12 @@ class HomeView extends GetView<HomeController> {
       padding: const EdgeInsets.all(16.0),
       child: TextField(
         onChanged: controller.filterApps,
-        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+        style: GoogleFonts.inter(
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
         decoration: InputDecoration(
           hintText: 'Search apps...',
-          hintStyle: TextStyle(
+          hintStyle: GoogleFonts.inter(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           prefixIcon: Icon(

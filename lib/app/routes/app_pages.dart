@@ -12,26 +12,19 @@ import 'app_routes.dart';
 class PauseMiddleware extends GetMiddleware {
   @override
   RouteSettings? redirect(String? route) {
-    print('=== PauseMiddleware.redirect() called ===');
-    print('Route: $route');
-
     // If the route is a pause route with a package parameter, allow it
     if (route != null &&
         route.startsWith(AppRoutes.pause) &&
         route.contains('?package=')) {
-      print('Allowing pause route with package parameter');
       return null;
     }
     // For all other routes, check if we're in a pause state
     // For now, just allow all other routes
-    print('Allowing other routes');
     return null;
   }
 
   @override
   GetPage? onPageCalled(GetPage? page) {
-    print('=== PauseMiddleware.onPageCalled() ===');
-    print('Page: ${page?.name}');
     return page;
   }
 }

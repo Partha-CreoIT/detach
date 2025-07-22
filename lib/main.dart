@@ -47,12 +47,8 @@ class DetachApp extends StatelessWidget {
         initialRoute: AppRoutes.splash,
         getPages: AppPages.pages,
         onGenerateInitialRoutes: (String initialRoute) {
-          print('=== DetachApp: onGenerateInitialRoutes called ===');
-          print('Initial route: $initialRoute');
-
           // Check if this is a pause route from Android
           if (initialRoute.startsWith('/pause')) {
-            print('=== DetachApp: Direct pause route detected ===');
             return [
               PageRouteBuilder(
                 settings: RouteSettings(name: initialRoute),

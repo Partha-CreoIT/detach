@@ -156,55 +156,6 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Animated SVG logo
-                      AnimatedBuilder(
-                        animation: _logoController,
-                        builder: (context, child) {
-                          return Transform.scale(
-                            scale: _logoScaleAnimation.value,
-                            child: Transform.rotate(
-                              angle: _logoRotationAnimation.value,
-                              child: Opacity(
-                                opacity: _logoOpacityAnimation.value,
-                                child: Container(
-                                  width: 120,
-                                  height: 120,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(60),
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        const Color(0xFF6B75F2),
-                                        const Color(0xFF8B5CF6),
-                                      ],
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(0xFF6B75F2)
-                                            .withOpacity(0.3),
-                                        blurRadius: 20,
-                                        spreadRadius: 5,
-                                      ),
-                                    ],
-                                  ),
-                                  child: Center(
-                                    child: SvgPicture.asset(
-                                      'assets/svg/detach_symbol_black.svg',
-                                      width: 60,
-                                      height: 60,
-                                      colorFilter: const ColorFilter.mode(
-                                        Colors.white,
-                                        BlendMode.srcIn,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
                       const SizedBox(height: 32),
                       Text(
                         "DETACH",

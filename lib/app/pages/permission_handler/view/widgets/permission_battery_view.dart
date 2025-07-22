@@ -2,6 +2,7 @@ import 'package:figma_squircle/figma_squircle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:detach/app/pages/permission_handler/controller/permission_controller.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class PermissionBatteryView extends GetView<PermissionController> {
   const PermissionBatteryView({super.key});
@@ -32,16 +33,23 @@ class PermissionBatteryView extends GetView<PermissionController> {
               ),
               const SizedBox(height: 24),
               // Title
-              const Text(
+              Text(
                 'Battery Optimization',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: GoogleFonts.inter(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
               // Description
-              const Text(
+              Text(
                 'To work properly in the background, Detach needs to be excluded from battery optimization.',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
@@ -53,11 +61,12 @@ class PermissionBatteryView extends GetView<PermissionController> {
             width: double.maxFinite,
             child: ElevatedButton.icon(
               icon: const Icon(Icons.battery_charging_full),
-              label: const Text(
+              label: Text(
                 'Disable Battery Optimization',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,),
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               onPressed: () async {
                 await controller.openBatteryOptimizationSettings();
