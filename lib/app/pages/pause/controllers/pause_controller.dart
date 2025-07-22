@@ -115,8 +115,6 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
         // Use the pause channel since we're in PauseActivity
         await PlatformService.launchAppWithTimerViaPause(
             lockedPackageName!, sessionDuration);
-        print(
-            'TIMER ON: ${lockedPackageName} for ${selectedMinutes.value} minutes');
         Get.back();
 
         // Log analytics
@@ -214,37 +212,23 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     // Set up method channel listener for timer expiration
     const MethodChannel('com.detach.app/pause')
         .setMethodCallHandler((call) async {
-      print(
-          'DEBUG: Method channel call received: ${call.method} with args: ${call.arguments}');
 
       if (call.method == 'timerExpired') {
-        // Handle timer expiration
-        print('DEBUG: Timer expired method channel call received');
         _handleTimerExpiration();
       } else if (call.method == 'initializePause') {
         final packageName = call.arguments['packageName'];
         final isTimerExpired = call.arguments['timerExpired'] ?? false;
         final timerState = call.arguments['timerState'];
-
-        print(
-            'DEBUG: Initialize pause method channel call received - package: $packageName, timerExpired: $isTimerExpired, timerState: $timerState');
-
-        // Initialize the pause screen with the provided data
         _initializeFromAndroid(packageName, isTimerExpired);
       }
     });
 
-    // Debug: Print all parameters received
-    print('DEBUG: Get.parameters = ${Get.parameters}');
-    print('DEBUG: Get.rawRoute = ${Get.rawRoute}');
-    print('DEBUG: Get.currentRoute = ${Get.currentRoute}');
 
     // Check for timer expiration from multiple sources
     bool timerExpired = false;
 
     // Check Get.parameters first
     if (Get.parameters['timer_expired'] == 'true') {
-      print('DEBUG: Found timer_expired=true in Get.parameters');
       timerExpired = true;
       _isTimerExpired = true;
     }
@@ -252,14 +236,12 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     // Check route string
     final route = Get.rawRoute?.toString() ?? '';
     if (route.contains('timer_expired=true')) {
-      print('DEBUG: Found timer_expired=true in route string');
       timerExpired = true;
       _isTimerExpired = true;
     }
 
     // Check intent extras (for Android direct launch)
     if (Get.parameters['timer_state'] == 'expired') {
-      print('DEBUG: Found timer_state=expired in Get.parameters');
       timerExpired = true;
       _isTimerExpired = true;
     }
@@ -272,7 +254,6 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     }
 
     if (timerExpired) {
-      print('TIMER EXPIRED: Detected timer expiration, showing pause flow');
       // Force the correct state for timer expiration
       _forcePauseScreenState();
 
@@ -283,7 +264,6 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
         }
       });
     } else {
-      print('NORMAL FLOW: Showing normal pause flow');
       showTimer.value = false;
       showButtons.value = false; // Start with water animation
     }
@@ -325,13 +305,11 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   }
 
   void _forcePauseScreenState() {
-    print('FORCE PAUSE: Setting showTimer=false, showButtons=false');
     showTimer.value = false;
     showButtons.value = false;
   }
 
   void _handleTimerExpiration() {
-    print('TIMER EXPIRED: Method channel timer expiration detected');
     _isTimerExpired = true; // Set the flag
 
     // Force the correct state for timer expiration
@@ -350,7 +328,6 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     lockedPackageName = packageName;
 
     if (isTimerExpired) {
-      print('Timer expired detected from Android - showing pause flow');
       _isTimerExpired = true; // Set the flag
       // Force the correct state for timer expiration
       _forcePauseScreenState();
@@ -373,10 +350,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
         }
       });
     } else {
-      print('Normal pause flow - showing water animation');
-      print('Setting showTimer.value = false for normal flow');
       showTimer.value = false;
-      print('Setting showButtons.value = false for normal flow');
       showButtons.value = false; // Start with water animation
     }
 
@@ -419,7 +393,6 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
             .invokeMethod('pauseScreenClosed', {
           'package_name': lockedPackageName,
         });
-        print('TIMER OFF: ${lockedPackageName}');
       } catch (e) {
         // Handle error silently
       }
