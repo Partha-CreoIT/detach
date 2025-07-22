@@ -22,8 +22,6 @@ class AppBlockerService extends ChangeNotifier {
 
   /// Initialize the app blocker service
   Future<void> initialize() async {
-    debugPrint('AppBlockerService: Initializing...');
-
     // Start periodic health checks
     _startHealthChecks();
 
@@ -32,15 +30,11 @@ class AppBlockerService extends ChangeNotifier {
 
     // Check service status
     await _checkServiceStatus();
-
-    debugPrint('AppBlockerService: Initialized');
   }
 
   /// Start the app blocking service
   Future<bool> startService() async {
     try {
-      debugPrint('AppBlockerService: Starting service...');
-
       // Check permissions first
       final permissionService = PermissionService();
       final hasUsagePermission = await permissionService.hasUsagePermission();
@@ -52,8 +46,6 @@ class AppBlockerService extends ChangeNotifier {
       final hasPermissions =
           hasUsagePermission && hasOverlayPermission && hasBatteryOptimization;
       if (!hasPermissions) {
-        debugPrint(
-            'AppBlockerService: Missing permissions, cannot start service');
         return false;
       }
 
@@ -68,15 +60,12 @@ class AppBlockerService extends ChangeNotifier {
       _isServiceRunning = isRunning;
 
       if (isRunning) {
-        debugPrint('AppBlockerService: Service started successfully');
         notifyListeners();
         return true;
       } else {
-        debugPrint('AppBlockerService: Failed to start service');
         return false;
       }
     } catch (e) {
-      debugPrint('AppBlockerService: Error starting service: $e');
       return false;
     }
   }
@@ -84,8 +73,6 @@ class AppBlockerService extends ChangeNotifier {
   /// Stop the app blocking service
   Future<void> stopService() async {
     try {
-      debugPrint('AppBlockerService: Stopping service...');
-
       // Note: We don't have a direct stop method, but the service will
       // stop itself when there are no blocked apps
       _blockedApps.clear();
@@ -94,11 +81,7 @@ class AppBlockerService extends ChangeNotifier {
       _isServiceRunning = false;
       _isServiceHealthy = false;
       notifyListeners();
-
-      debugPrint('AppBlockerService: Service stopped');
-    } catch (e) {
-      debugPrint('AppBlockerService: Error stopping service: $e');
-    }
+    } catch (e) {}
   }
 
   /// Add an app to the blocked list
@@ -112,7 +95,6 @@ class AppBlockerService extends ChangeNotifier {
         await startService();
       }
 
-      debugPrint('AppBlockerService: Blocked app: $packageName');
       notifyListeners();
     }
   }
@@ -126,7 +108,6 @@ class AppBlockerService extends ChangeNotifier {
       // Notify the service about the unblock
       await PlatformService.resetAppBlock(packageName);
 
-      debugPrint('AppBlockerService: Unblocked app: $packageName');
       notifyListeners();
     }
   }
@@ -134,25 +115,18 @@ class AppBlockerService extends ChangeNotifier {
   /// Permanently block an app (user chose "I don't want to open")
   Future<void> permanentlyBlockApp(String packageName) async {
     await PlatformService.permanentlyBlockApp(packageName);
-    debugPrint('AppBlockerService: Permanently blocked app: $packageName');
   }
 
   /// Launch an app with a timer
   Future<void> launchAppWithTimer(
       String packageName, int durationSeconds) async {
     try {
-      debugPrint(
-          'AppBlockerService: Launching $packageName with ${durationSeconds}s timer');
-
       // Temporarily unblock the app
       await unblockApp(packageName);
 
       // Launch with timer
       await PlatformService.launchAppWithTimer(packageName, durationSeconds);
-
-      debugPrint('AppBlockerService: App launched with timer successfully');
     } catch (e) {
-      debugPrint('AppBlockerService: Error launching app with timer: $e');
       rethrow;
     }
   }
@@ -160,7 +134,6 @@ class AppBlockerService extends ChangeNotifier {
   /// Force restart the service
   Future<void> forceRestartService() async {
     try {
-      debugPrint('AppBlockerService: Force restarting service...');
       await PlatformService.forceRestartBlockerService();
 
       // Wait for restart
@@ -168,11 +141,7 @@ class AppBlockerService extends ChangeNotifier {
 
       // Check status
       await _checkServiceStatus();
-
-      debugPrint('AppBlockerService: Service force restarted');
-    } catch (e) {
-      debugPrint('AppBlockerService: Error force restarting service: $e');
-    }
+    } catch (e) {}
   }
 
   /// Check service health and status
@@ -183,12 +152,10 @@ class AppBlockerService extends ChangeNotifier {
       _isServiceRunning = healthInfo['isRunning'] ?? false;
       _isServiceHealthy = healthInfo['hasPermissions'] ?? false;
 
-      debugPrint('AppBlockerService: Health check completed: $healthInfo');
       notifyListeners();
 
       return healthInfo;
     } catch (e) {
-      debugPrint('AppBlockerService: Error checking service health: $e');
       return {
         'isRunning': false,
         'hasPermissions': false,
@@ -201,19 +168,13 @@ class AppBlockerService extends ChangeNotifier {
   /// Test the pause screen for a specific app
   Future<void> testPauseScreen(String packageName) async {
     try {
-      debugPrint('AppBlockerService: Testing pause screen for $packageName');
       await PlatformService.testPauseScreen(packageName);
-    } catch (e) {
-      debugPrint('AppBlockerService: Error testing pause screen: $e');
-    }
+    } catch (e) {}
   }
 
   /// Test if a blocked app shows pause screen when opened
   Future<void> testBlockedAppOpening(String packageName) async {
     try {
-      debugPrint(
-          'AppBlockerService: Testing blocked app opening for $packageName');
-
       // First ensure the app is blocked
       await blockApp(packageName);
 
@@ -222,21 +183,13 @@ class AppBlockerService extends ChangeNotifier {
 
       // Try to launch the app - this should trigger the pause screen
       await PlatformService.launchApp(packageName);
-
-      debugPrint(
-          'AppBlockerService: Test completed - pause screen should appear');
-    } catch (e) {
-      debugPrint('AppBlockerService: Error testing blocked app opening: $e');
-    }
+    } catch (e) {}
   }
 
   /// Test the complete timer flow: block app, launch with timer, wait for expiry, try to open again
   Future<void> testCompleteTimerFlow(
       String packageName, int durationSeconds) async {
     try {
-      debugPrint(
-          'AppBlockerService: Testing complete timer flow for $packageName');
-
       // First ensure the app is blocked
       await blockApp(packageName);
 
@@ -246,31 +199,19 @@ class AppBlockerService extends ChangeNotifier {
       // Launch with timer
       await launchAppWithTimer(packageName, durationSeconds);
 
-      debugPrint('AppBlockerService: Timer started, waiting for expiry...');
-
       // Wait for timer to expire (plus a small buffer)
       await Future.delayed(Duration(seconds: durationSeconds + 2));
 
       // Try to launch the app again - this should trigger the pause screen
       await PlatformService.launchApp(packageName);
-
-      debugPrint(
-          'AppBlockerService: Complete timer flow test finished - pause screen should appear');
-    } catch (e) {
-      debugPrint('AppBlockerService: Error testing complete timer flow: $e');
-    }
+    } catch (e) {}
   }
 
   /// Clear the pause flag for debugging purposes
   Future<void> clearPauseFlag([String? packageName]) async {
     try {
-      debugPrint(
-          'AppBlockerService: Clearing pause flag for ${packageName ?? "all apps"}');
       await PlatformService.clearPauseFlag(packageName);
-      debugPrint('AppBlockerService: Pause flag cleared successfully');
-    } catch (e) {
-      debugPrint('AppBlockerService: Error clearing pause flag: $e');
-    }
+    } catch (e) {}
   }
 
   /// Start periodic health checks
@@ -300,19 +241,14 @@ class AppBlockerService extends ChangeNotifier {
         _isServiceRunning = isRunning;
         notifyListeners();
       }
-    } catch (e) {
-      debugPrint('AppBlockerService: Error checking service status: $e');
-    }
+    } catch (e) {}
   }
 
   /// Load blocked apps from storage
   Future<void> _loadBlockedApps() async {
     try {
       _blockedApps = await PlatformService.getBlockedApps();
-      debugPrint(
-          'AppBlockerService: Loaded ${_blockedApps.length} blocked apps');
     } catch (e) {
-      debugPrint('AppBlockerService: Error loading blocked apps: $e');
       _blockedApps = [];
     }
   }
@@ -321,11 +257,7 @@ class AppBlockerService extends ChangeNotifier {
   Future<void> _saveBlockedApps() async {
     try {
       await PlatformService.startBlockerService(_blockedApps);
-      debugPrint(
-          'AppBlockerService: Saved ${_blockedApps.length} blocked apps');
-    } catch (e) {
-      debugPrint('AppBlockerService: Error saving blocked apps: $e');
-    }
+    } catch (e) {}
   }
 
   /// Dispose resources

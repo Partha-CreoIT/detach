@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:detach/services/analytics_service.dart';
@@ -9,7 +10,7 @@ import 'package:installed_apps/installed_apps.dart';
 import 'package:detach/app/routes/app_routes.dart';
 import 'package:figma_squircle/figma_squircle.dart';
 
-class HomeController extends GetxController {
+class HomeController extends GetxController with WidgetsBindingObserver {
   final RxInt limitedAppsCount = 0.obs;
   final PermissionService _permissionService = PermissionService();
   // App list functionality
@@ -20,10 +21,28 @@ class HomeController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    WidgetsBinding.instance.addObserver(this);
     _loadLimitedAppsCount();
     _loadBlockedAppsAndApps();
     _logScreenView();
     _startBlockerServiceIfNeeded();
+  }
+
+  @override
+  void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.onClose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh blocked apps list when app is resumed with a small delay
+      // to ensure Android service has time to update SharedPreferences
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _refreshBlockedApps();
+      });
+    }
   }
 
   Future<void> _loadLimitedAppsCount() async {
@@ -36,8 +55,24 @@ class HomeController extends GetxController {
     // Load previously blocked apps from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     final blockedApps = prefs.getStringList("blocked_apps") ?? [];
-    selectedAppPackages.assignAll(blockedApps);
+
+    // Also get blocked apps from Android service to compare
+    try {
+      final androidBlockedApps = await PlatformService.getBlockedApps();
+
+      // If Android service has more apps than SharedPreferences, use Android service data
+      if (androidBlockedApps.length > blockedApps.length) {
+        selectedAppPackages.assignAll(androidBlockedApps);
+      } else {
+        selectedAppPackages.assignAll(blockedApps);
+      }
+    } catch (e) {
+      selectedAppPackages.assignAll(blockedApps);
+    }
     await _loadApps();
+
+    // Add a small delay to ensure allApps is fully populated
+    await Future.delayed(const Duration(milliseconds: 100));
   }
 
   Future<void> _startBlockerServiceIfNeeded() async {
@@ -106,19 +141,6 @@ class HomeController extends GetxController {
     filteredApps.refresh();
     // Save to SharedPreferences and update the service
     await saveApps();
-  }
-
-  Future<void> _performAppBlocking(AppInfo app) async {
-    selectedAppPackages.add(app.packageName);
-    AnalyticsService.to.logAppBlocked(app.name);
-    // Save to SharedPreferences immediately
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList("blocked_apps", selectedAppPackages.toList());
-    // Update limited apps count
-    limitedAppsCount.value = selectedAppPackages.length;
-    // Trigger UI update
-    selectedAppPackages.refresh();
-    allApps.refresh();
   }
 
   Future<bool> _checkAllPermissions() async {
@@ -271,6 +293,33 @@ class HomeController extends GetxController {
       name: 'apps_blocked_count',
       parameters: {'count': selectedAppPackages.length},
     );
+  }
+
+  Future<void> _refreshBlockedApps() async {
+    // Load current blocked apps from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final blockedApps = prefs.getStringList("blocked_apps") ?? [];
+
+
+    // Update the selected apps list if it's different
+    if (!_areListsEqual(selectedAppPackages, blockedApps)) {
+      selectedAppPackages.assignAll(blockedApps);
+      limitedAppsCount.value = blockedApps.length;
+      // Trigger UI update
+      selectedAppPackages.refresh();
+      allApps.refresh();
+      filteredApps.refresh();
+
+    } else {
+    }
+  }
+
+  bool _areListsEqual(List<String> list1, List<String> list2) {
+    if (list1.length != list2.length) return false;
+    for (int i = 0; i < list1.length; i++) {
+      if (list1[i] != list2[i]) return false;
+    }
+    return true;
   }
 
   // Computed getters for the UI

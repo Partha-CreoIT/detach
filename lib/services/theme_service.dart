@@ -288,31 +288,19 @@ class ThemeService extends GetxService {
 
   // Update status bar style based on current theme
   void updateStatusBarStyle() {
-    final isDark = _themeMode.value == ThemeMode.dark ||
-        (_themeMode.value == ThemeMode.system && _isDarkMode.value);
-
-    // Debug logging
-    print('=== updateStatusBarStyle called ===');
-    print('Theme mode: ${_themeMode.value}');
-    print('Is dark mode: $isDark');
-    print('Status bar icon brightness: ${isDark ? "light" : "dark"}');
+    final isDark = _themeMode.value == ThemeMode.dark;
 
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
         statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
-        systemNavigationBarColor:
-            isDark ? const Color(0xFF1A1A1A) : Colors.white,
-        systemNavigationBarIconBrightness:
-            isDark ? Brightness.light : Brightness.dark,
       ),
     );
   }
 
   // Force refresh status bar style - can be called from any page
   void forceRefreshStatusBar() {
-    print('=== forceRefreshStatusBar called ===');
     updateStatusBarStyle();
   }
 }
