@@ -157,6 +157,20 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     ).invokeMethod('goToHomeAndFinish');
   }
 
+  void closeApp() async {
+    if (lockedPackageName != null) {
+      await PlatformService.permanentlyBlockApp(lockedPackageName!);
+      try {
+        await PlatformService.resetPauseFlag(lockedPackageName!);
+      } catch (e) {
+        // Handle error silently
+      }
+    }
+    await const MethodChannel(
+      'com.detach.app/pause',
+    ).invokeMethod('goToHomeAndFinish');
+  }
+
   void continueApp() async {
     AnalyticsService.to.logPauseSessionInterrupted();
 
