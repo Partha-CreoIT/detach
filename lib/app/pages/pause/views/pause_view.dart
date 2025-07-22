@@ -5,6 +5,7 @@ import '../controllers/pause_controller.dart';
 import 'widgets/timer_view.dart';
 import 'package:detach/services/theme_service.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class PauseView extends GetView<PauseController> {
   const PauseView({super.key});
@@ -44,12 +45,10 @@ class PauseView extends GetView<PauseController> {
                     ? Center(
                         child: Text(
                           "It's time to take a deep\nbreath...",
-                          style: TextStyle(
+                          style: GoogleFonts.inter(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
-                            color:
-                                Theme.of(context).textTheme.bodyLarge?.color ??
-                                    Colors.black87,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -98,14 +97,10 @@ class PauseView extends GetView<PauseController> {
                             const Spacer(),
                             Text(
                               controller.attemptsToday.value.toString(),
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 fontSize: 120,
                                 fontWeight: FontWeight.bold,
-                                color: Theme.of(context)
-                                        .textTheme
-                                        .bodyLarge
-                                        ?.color ??
-                                    Colors.black,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -113,13 +108,10 @@ class PauseView extends GetView<PauseController> {
                               () => Text(
                                 'attempts to open ${controller.displayAppName.isNotEmpty ? controller.displayAppName : (controller.lockedPackageName ?? "App")} within the\nlast 24 hours.',
                                 textAlign: TextAlign.center,
-                                style: TextStyle(
+                                style: GoogleFonts.inter(
                                   fontSize: 18,
-                                  color: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.color ??
-                                      Colors.black87,
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
                                   height: 1.5,
                                 ),
                               ),
@@ -142,7 +134,7 @@ class PauseView extends GetView<PauseController> {
                               ),
                               child: Text(
                                 "I don't want to open ${controller.displayAppName}",
-                                style: const TextStyle(
+                                style: GoogleFonts.inter(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500,
                                   color: Colors.white,
@@ -167,11 +159,9 @@ class PauseView extends GetView<PauseController> {
                                 ),
                                 child: Text(
                                   'Continue on ${controller.displayAppName}',
-                                  style: TextStyle(
-                                    color: Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.white
-                                        : const Color(0xFF6B75F2),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 )),
                             const SizedBox(height: 32),

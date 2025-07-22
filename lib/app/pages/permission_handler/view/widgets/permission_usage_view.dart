@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:detach/app/pages/permission_handler/controller/permission_controller.dart';
 import 'package:figma_squircle/figma_squircle.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class PermissionUsageView extends GetView<PermissionController> {
   const PermissionUsageView({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -31,15 +33,22 @@ class PermissionUsageView extends GetView<PermissionController> {
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'App Usage Permission',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: GoogleFonts.inter(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Detach requires permission to detect which app is currently in use so it can help you focus. '
                 'This permission is only used on your device and never leaves it.',
-                style: TextStyle(fontSize: 16),
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
               const SizedBox(height: 16),
               // Instructions
@@ -50,10 +59,10 @@ class PermissionUsageView extends GetView<PermissionController> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                 ),
-                child: const Column(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       '📋 Instructions:',
                       style: TextStyle(
                         fontSize: 16,
@@ -61,13 +70,16 @@ class PermissionUsageView extends GetView<PermissionController> {
                         color: Colors.blue,
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       '1. Tap the button below\n'
                       '2. Find and tap on "Detach" in the list\n'
                       '3. Toggle "Permit usage access"\n'
                       '4. Return to the app',
-                      style: TextStyle(fontSize: 14, color: Colors.blue),
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: Colors.blue,
+                      ),
                     ),
                   ],
                 ),
@@ -77,25 +89,27 @@ class PermissionUsageView extends GetView<PermissionController> {
           SizedBox(
             width: double.maxFinite,
             child: ElevatedButton.icon(
-              icon: const Icon(Icons.visibility),
-              onPressed: () async {
-                await controller.openUsageSettings();
-                // Reset permission check so it will re-check when user returns
-                controller.resetPermissionCheck();
-              },
-              style: FilledButton.styleFrom(
-                shape: const SmoothRectangleBorder(
-                  borderRadius: SmoothBorderRadius.all(
-                    SmoothRadius(cornerRadius: 8, cornerSmoothing: 1),
+                icon: const Icon(Icons.visibility),
+                onPressed: () async {
+                  await controller.openUsageSettings();
+                  // Reset permission check so it will re-check when user returns
+                  controller.resetPermissionCheck();
+                },
+                style: FilledButton.styleFrom(
+                  shape: const SmoothRectangleBorder(
+                    borderRadius: SmoothBorderRadius.all(
+                      SmoothRadius(cornerRadius: 8, cornerSmoothing: 1),
+                    ),
                   ),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              label: const Text(
-                'Grant Usage Permission',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-            ),
+                label: Text(
+                  "Grant Usage Permission",
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                )),
           ),
         ],
       ),

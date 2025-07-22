@@ -21,7 +21,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   final RxInt selectedMinutes = 5.obs;
   late AnimationController progressController;
   late Animation<double> progressAnim;
-  String appNameStr = "Google Docs";
+  String appNameStr = "";
 
   String get displayAppName =>
       appName.value.isNotEmpty ? appName.value : appNameStr;
@@ -382,7 +382,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   Future<void> _initializeAppData() async {
     if (lockedPackageName != null) {
       try {
-        allApps = await InstalledApps.getInstalledApps(true, true);
+        allApps = await InstalledApps.getInstalledApps(false, true);
         appName.value = AppCountService.getAppNameFromPackage(
           lockedPackageName!,
           allApps,
