@@ -56,8 +56,7 @@ class PermissionOverlayView extends GetView<PermissionController> {
                 decoration: BoxDecoration(
                   color: Colors.purple.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border:
-                      Border.all(color: Colors.purple.withValues(alpha: 0.3)),
+                  border: Border.all(color: Colors.purple.withValues(alpha: 0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -91,8 +90,7 @@ class PermissionOverlayView extends GetView<PermissionController> {
               icon: const Icon(Icons.layers),
               label: Text(
                 'Grant Overlay Permission',
-                style: GoogleFonts.inter(
-                    fontSize: 16, fontWeight: FontWeight.w600),
+                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               onPressed: () async {
                 await controller.openOverlaySettings();

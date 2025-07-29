@@ -660,6 +660,12 @@ class AppLaunchInterceptor : Service() {
             return
         }
         
+        // Check if Detach is currently in foreground - if so, don't show pause screen
+        if (isDetachInForeground) {
+            android.util.Log.d(TAG, "Detach is in foreground, not showing pause screen for $packageName")
+            return
+        }
+        
         // Check if this app is in startup apps and we haven't marked them as detected yet
         if (!startupAppsDetected && startupRunningApps.contains(packageName)) {
             android.util.Log.d(TAG, "App $packageName is in startup apps, skipping for now")
@@ -682,40 +688,40 @@ class AppLaunchInterceptor : Service() {
         android.util.Log.d(TAG, "Is Detach in foreground: $isDetachInForeground")
 
         if (blockedApps != null && blockedApps.contains(packageName)) {
-            android.util.Log.d(TAG, "App $packageName is blocked, showing pause screen")
+            android.util.Log.d(TAG, "App $packageName is blocked, launching pause screen immediately")
 
-            // Immediately force stop the app to prevent it from appearing
-            forceStopApp(packageName)
-            
-            // Mark as currently paused
-            currentlyPausedApp = packageName
-            
-            // Set a timeout to clear currentlyPausedApp after 30 seconds to prevent permanent blocking
-            handler.postDelayed({
-                if (currentlyPausedApp == packageName) {
-                    currentlyPausedApp = null
-                    android.util.Log.d(TAG, "Cleared currentlyPausedApp for $packageName due to timeout")
+            // Launch pause screen immediately (no splash delay like competitor)
+            try {
+                android.util.Log.d(TAG, "Launching pause screen for $packageName immediately...")
+                val pauseIntent = Intent(this, PauseActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    putExtra("blocked_app_package", packageName)
+                    putExtra("show_lock", true)
+                    putExtra("timer_expired", false)
+                    putExtra("timer_state", "normal")
+                    putExtra("immediate_block", true) // Indicate immediate blocking
+                    putExtra("overlay_mode", true) // Make it an overlay
                 }
-            }, 30000) // 30 seconds timeout
-            
-            handler.post {
-                try {
-                    android.util.Log.d(TAG, "Launching pause screen for $packageName...")
-                    val pauseIntent = Intent(this, PauseActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        putExtra("blocked_app_package", packageName)
-                        putExtra("show_lock", true)
-                        putExtra("timer_expired", false)
-                        putExtra("timer_state", "normal")
+                startActivity(pauseIntent)
+                lastPauseLaunchTime[packageName] = currentTime
+                android.util.Log.d(TAG, "Pause screen launched successfully for $packageName")
+                
+                // Mark as currently paused only after successful launch
+                currentlyPausedApp = packageName
+                
+                // Set a timeout to clear currentlyPausedApp after 3 seconds to prevent permanent blocking
+                handler.postDelayed({
+                    if (currentlyPausedApp == packageName) {
+                        currentlyPausedApp = null
+                        android.util.Log.d(TAG, "Cleared currentlyPausedApp for $packageName due to safety timeout")
                     }
-                    startActivity(pauseIntent)
-                    lastPauseLaunchTime[packageName] = currentTime
-                    android.util.Log.d(TAG, "Pause screen launched successfully for $packageName")
-                } catch (e: Exception) {
-                    android.util.Log.e(TAG, "Error launching pause screen: ${e.message}", e)
-                    currentlyPausedApp = null
-                }
+                }, 3000) // 3 seconds safety timeout
+                
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Error launching pause screen: ${e.message}", e)
+                // Don't set currentlyPausedApp if launch failed
             }
+            
         } else {
             android.util.Log.d(TAG, "App $packageName is NOT blocked or blockedApps is null")
         }

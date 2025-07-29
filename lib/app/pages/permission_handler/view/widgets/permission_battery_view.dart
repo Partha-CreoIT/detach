@@ -56,7 +56,7 @@ class PermissionBatteryView extends GetView<PermissionController> {
             ],
           ),
           const SizedBox(height: 24),
-          // Button
+          // Buttons
           SizedBox(
             width: double.maxFinite,
             child: ElevatedButton.icon(
