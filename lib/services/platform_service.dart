@@ -37,8 +37,7 @@ class PlatformService {
   }
 
   /// Start tracking an app session with a timer
-  static Future<void> startAppSession(
-      String packageName, int durationSeconds) async {
+  static Future<void> startAppSession(String packageName, int durationSeconds) async {
     try {
       await _channel.invokeMethod('startAppSession', {
         'packageName': packageName,
@@ -48,8 +47,7 @@ class PlatformService {
   }
 
   /// Launch an app with a timer that runs on Android
-  static Future<void> launchAppWithTimer(
-      String packageName, int durationSeconds) async {
+  static Future<void> launchAppWithTimer(String packageName, int durationSeconds) async {
     try {
       await _channel.invokeMethod('launchAppWithTimer', {
         'packageName': packageName,
@@ -61,11 +59,9 @@ class PlatformService {
   }
 
   /// Launch an app with a timer using the pause channel (when app opens directly to PauseActivity)
-  static Future<void> launchAppWithTimerViaPause(
-      String packageName, int durationSeconds) async {
+  static Future<void> launchAppWithTimerViaPause(String packageName, int durationSeconds) async {
     try {
-      await const MethodChannel('com.detach.app/pause')
-          .invokeMethod('launchAppWithTimer', {
+      await const MethodChannel('com.detach.app/pause').invokeMethod('launchAppWithTimer', {
         'packageName': packageName,
         'durationSeconds': durationSeconds,
       });
@@ -202,6 +198,16 @@ class PlatformService {
       });
     } catch (e) {
       // Handle error silently
+    }
+  }
+
+  /// Get the current foreground app package name
+  static Future<String?> getCurrentForegroundApp() async {
+    try {
+      final result = await _channel.invokeMethod('getCurrentForegroundApp');
+      return result;
+    } catch (e) {
+      return null;
     }
   }
 }

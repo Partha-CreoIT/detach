@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:detach/services/analytics_service.dart';
 import 'package:detach/services/platform_service.dart';
 import 'package:detach/services/permission_service.dart';
+import 'package:detach/services/database_service.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:detach/app/routes/app_routes.dart';
@@ -12,6 +13,7 @@ import 'package:figma_squircle/figma_squircle.dart';
 class HomeController extends GetxController with WidgetsBindingObserver {
   final RxInt limitedAppsCount = 0.obs;
   final PermissionService _permissionService = PermissionService();
+  final DatabaseService _databaseService = DatabaseService();
   // App list functionality
   final RxList<AppInfo> allApps = <AppInfo>[].obs;
   final RxList<String> selectedAppPackages = <String>[].obs;
@@ -210,8 +212,7 @@ class HomeController extends GetxController with WidgetsBindingObserver {
         if (app.packageName == 'com.detach.app') continue;
 
         // Show only user-facing Google apps and allow-list
-        if (googleUserApps.contains(app.packageName) ||
-            allowList.contains(app.packageName)) {
+        if (googleUserApps.contains(app.packageName) || allowList.contains(app.packageName)) {
           filteredInstalledApps.add(app);
           continue;
         }
@@ -226,8 +227,7 @@ class HomeController extends GetxController with WidgetsBindingObserver {
         }
 
         // Exclude Samsung/sec unless in allow-list
-        if (app.packageName.startsWith('com.samsung.') ||
-            app.packageName.startsWith('com.sec.')) {
+        if (app.packageName.startsWith('com.samsung.') || app.packageName.startsWith('com.sec.')) {
           if (allowList.contains(app.packageName)) {
             filteredInstalledApps.add(app);
           }
@@ -308,9 +308,16 @@ class HomeController extends GetxController with WidgetsBindingObserver {
     if (selectedAppPackages.contains(app.packageName)) {
       selectedAppPackages.remove(app.packageName);
       AnalyticsService.to.logAppUnblocked(app.name);
+      // Remove from locked apps table
+      await _databaseService.deleteLockedApp(app.packageName);
     } else {
       selectedAppPackages.add(app.packageName);
       AnalyticsService.to.logAppBlocked(app.name);
+      // Add to locked apps table (no default timings - will be set when user opens app)
+      await _databaseService.upsertLockedApp(
+        packageName: app.packageName,
+        appName: app.name,
+      );
       // Notify native side that app was blocked to prevent immediate pause screen
       PlatformService.notifyAppBlocked(app.packageName);
     }
@@ -498,9 +505,7 @@ class HomeController extends GetxController with WidgetsBindingObserver {
 
   // Computed getters for the UI
   List<AppInfo> get selectedApps {
-    return allApps
-        .where((app) => selectedAppPackages.contains(app.packageName))
-        .toList();
+    return allApps.where((app) => selectedAppPackages.contains(app.packageName)).toList();
   }
 
   // Method to refresh apps list (useful for debugging or manual refresh)

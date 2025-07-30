@@ -69,7 +69,7 @@ class StepperIndicator extends GetView<PermissionController> {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: isCompleted
-                ? Theme.of(context).colorScheme.primary
+                ? Colors.green
                 : isPastStep
                     ? Theme.of(context).colorScheme.primary
                     : isCurrentStep

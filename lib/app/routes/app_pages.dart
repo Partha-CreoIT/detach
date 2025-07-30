@@ -3,8 +3,12 @@ import 'package:flutter/material.dart';
 import '../pages/splash_page.dart';
 import '../pages/permission_handler/bindings/permission_binding.dart';
 import '../pages/permission_handler/view/permission_view.dart';
+import '../pages/main_navigation/bindings/main_navigation_binding.dart';
+import '../pages/main_navigation/view/main_navigation_view.dart';
 import '../pages/home/bindings/home_binding.dart';
 import '../pages/home/view/home_view.dart';
+import '../pages/statistics/bindings/statistics_binding.dart';
+import '../pages/statistics/view/statistics_view.dart';
 import '../pages/pause/bindings/pause_binding.dart';
 import '../pages/pause/views/pause_view.dart';
 import 'app_routes.dart';
@@ -13,9 +17,7 @@ class PauseMiddleware extends GetMiddleware {
   @override
   RouteSettings? redirect(String? route) {
     // If the route is a pause route with a package parameter, allow it
-    if (route != null &&
-        route.startsWith(AppRoutes.pause) &&
-        route.contains('?package=')) {
+    if (route != null && route.startsWith(AppRoutes.pause) && route.contains('?package=')) {
       return null;
     }
     // For all other routes, check if we're in a pause state
@@ -38,9 +40,19 @@ class AppPages {
       binding: PermissionBinding(),
     ),
     GetPage(
+      name: AppRoutes.mainNavigation,
+      page: () => const MainNavigationView(),
+      binding: MainNavigationBinding(),
+    ),
+    GetPage(
       name: AppRoutes.home,
       page: () => const HomeView(),
       binding: HomeBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.statistics,
+      page: () => const StatisticsView(),
+      binding: StatisticsBinding(),
     ),
     GetPage(
       name: AppRoutes.pause,

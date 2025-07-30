@@ -379,6 +379,15 @@ class MainActivity : FlutterActivity() {
                     val healthInfo = checkServiceHealth()
                     result.success(healthInfo)
                 }
+                "getCurrentForegroundApp" -> {
+                    try {
+                        val currentApp = getCurrentForegroundApp()
+                        result.success(currentApp)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error getting current foreground app: ${e.message}", e)
+                        result.error("FOREGROUND_APP_ERROR", "Error getting current foreground app: ${e.message}", null)
+                    }
+                }
                 else -> {
                     result.notImplemented()
                 }
@@ -407,6 +416,21 @@ class MainActivity : FlutterActivity() {
     private fun isIgnoringBatteryOptimizations(): Boolean {
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         return pm.isIgnoringBatteryOptimizations(packageName)
+    }
+    
+    private fun getCurrentForegroundApp(): String? {
+        return try {
+            val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            val tasks = am.getRunningTasks(1)
+            if (tasks.isNotEmpty()) {
+                tasks[0].topActivity?.packageName
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting current foreground app: ${e.message}", e)
+            null
+        }
     }
     private fun openUsageAccessSettings() {
         // Unfortunately, there's no direct way to grant usage access like battery optimization

@@ -34,7 +34,7 @@ class PermissionView extends GetView<PermissionController> {
           icon: const Icon(Icons.close),
           onPressed: () async {
             await controller.setBypassPermissions();
-            Get.offAllNamed(AppRoutes.home);
+            Get.offAllNamed(AppRoutes.mainNavigation);
           },
         ),
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:detach/app/routes/app_routes.dart';
 
 import 'package:figma_squircle/figma_squircle.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -166,7 +167,7 @@ class _HowToUseViewState extends State<HowToUseView> with TickerProviderStateMix
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.arrow_forward),
                   onPressed: () {
-                    Get.offAllNamed('/home');
+                    Get.offAllNamed(AppRoutes.mainNavigation);
                   },
                   style: FilledButton.styleFrom(
                     backgroundColor: Theme.of(context).colorScheme.primary,

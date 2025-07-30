@@ -235,6 +235,14 @@ class AppLaunchInterceptor : Service() {
         
         android.util.Log.d(TAG, "Started app session for $packageName: ${durationSeconds}s")
         
+        // Save timer start info to SharedPreferences for Flutter to read
+        prefs.edit()
+            .putString("timer_started_${packageName}", "true")
+            .putInt("timer_duration_${packageName}", durationSeconds.toInt())
+            .apply()
+        
+        android.util.Log.d(TAG, "Saved timer start info for $packageName: ${durationSeconds}s")
+        
         // Start timer to end session
         val timerRunnable = Runnable {
             endAppSession(packageName)
@@ -281,6 +289,23 @@ class AppLaunchInterceptor : Service() {
             currentlyPausedApp = null
         }
         
+        // Calculate elapsed time for timer expiration
+        val session = appSessions[packageName]
+        val elapsedTime = if (session != null) {
+            val currentTime = System.currentTimeMillis()
+            ((currentTime - session.startTime) / 1000).toInt()
+        } else {
+            0
+        }
+        
+        // Save timer expiration info to SharedPreferences for Flutter to read
+        prefs.edit()
+            .putString("timer_expired_${packageName}", "true")
+            .putInt("timer_elapsed_${packageName}", elapsedTime)
+            .apply()
+        
+        android.util.Log.d(TAG, "Saved timer expiration info for $packageName")
+        
         // Launch pause screen with timer_expired=true to show the pause flow
         handler.post {
             try {
@@ -302,6 +327,15 @@ class AppLaunchInterceptor : Service() {
     private fun stopTimerForApp(packageName: String) {
         android.util.Log.d(TAG, "Stopping timer for $packageName")
         
+        // Calculate elapsed time
+        val session = appSessions[packageName]
+        val elapsedTime = if (session != null) {
+            val currentTime = System.currentTimeMillis()
+            ((currentTime - session.startTime) / 1000).toInt()
+        } else {
+            0
+        }
+        
         // Remove timer runnable
         timerRunnables[packageName]?.let { runnable ->
             handler.removeCallbacks(runnable)
@@ -320,7 +354,15 @@ class AppLaunchInterceptor : Service() {
             .remove(sessionDurationKey)
             .apply()
         
-        android.util.Log.d(TAG, "Timer stopped for $packageName")
+        // Save timer stop info to SharedPreferences for Flutter to read
+        prefs.edit()
+            .putString("timer_stopped_${packageName}", "true")
+            .putInt("timer_elapsed_${packageName}", elapsedTime)
+            .apply()
+        
+        android.util.Log.d(TAG, "Saved timer stop info for $packageName: ${elapsedTime}s")
+        
+        android.util.Log.d(TAG, "Timer stopped for $packageName, elapsed: ${elapsedTime}s")
     }
 
     private fun resetAppBlock(packageName: String) {

@@ -43,6 +43,11 @@ dependencies:
   google_fonts: ^6.1.0
   flutter_svg: ^2.2.0
 
+  # Database dependencies
+  sqflite: ^2.3.0
+  # Chart dependencies
+  fl_chart: ^0.66.0
+
   # Analytics dependencies
   firebase_core: ^3.6.0
   firebase_analytics: ^11.3.3

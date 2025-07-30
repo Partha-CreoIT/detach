@@ -10,10 +10,12 @@ import 'package:flutter/scheduler.dart';
 import 'package:detach/app/routes/app_routes.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:detach/services/database_service.dart';
 
 class PauseController extends GetxController with GetTickerProviderStateMixin {
   late AnimationController waterController;
   late Animation<double> waterAnimation;
+  final DatabaseService _databaseService = DatabaseService();
 
   // Timer/slider logic for PauseView
   final RxBool showTimer = false.obs;
@@ -47,6 +49,18 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
 
           // If the app was closed before the timer finished
           if (elapsedSeconds < totalDuration) {
+            // Update database with early exit
+            try {
+              await _databaseService.updateAppUsage(
+                packageName: packageName,
+                sessionDurationSeconds: elapsedSeconds,
+                isTimerExpired: false,
+              );
+              print('DEBUG: Updated database for early exit - $packageName, duration: ${elapsedSeconds}s');
+            } catch (e) {
+              print('Error updating database for early exit: $e');
+            }
+
             // Add the app back to blocked list
             final blockedApps =
                 prefs.getStringList("blocked_apps")?.toList() ?? [];
@@ -112,6 +126,12 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
       final sessionDuration = selectedMinutes.value * 60;
 
       try {
+        // Set the timer in the database
+        await _databaseService.setAppTimer(
+          packageName: lockedPackageName!,
+          timerMinutes: selectedMinutes.value,
+        );
+
         // Use the pause channel since we're in PauseActivity
         await PlatformService.launchAppWithTimerViaPause(
             lockedPackageName!, sessionDuration);
@@ -141,6 +161,24 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
 
   void blockApp() async {
     if (lockedPackageName != null) {
+      // Update database with session end (user blocked app)
+      try {
+        final app = await _databaseService.getLockedApp(lockedPackageName!);
+        if (app != null) {
+          final totalLockedTime = (app['total_locked_time'] ?? 0) as int;
+          final sessionDurationSeconds = totalLockedTime * 60; // Assume full session
+          
+          await _databaseService.updateAppUsage(
+            packageName: lockedPackageName!,
+            sessionDurationSeconds: sessionDurationSeconds,
+            isTimerExpired: false,
+          );
+          print('DEBUG: Updated database for manual block - $lockedPackageName, duration: ${sessionDurationSeconds}s');
+        }
+      } catch (e) {
+        print('Error updating database for manual block: $e');
+      }
+
       await AppCountService.incrementAppCount(lockedPackageName!);
       await PlatformService.permanentlyBlockApp(lockedPackageName!);
       // Reset the pause flag since the user is taking action
@@ -157,6 +195,24 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
 
   void closeApp() async {
     if (lockedPackageName != null) {
+      // Update database with session end (user closed app)
+      try {
+        final app = await _databaseService.getLockedApp(lockedPackageName!);
+        if (app != null) {
+          final totalLockedTime = (app['total_locked_time'] ?? 0) as int;
+          final sessionDurationSeconds = totalLockedTime * 60; // Assume full session
+          
+          await _databaseService.updateAppUsage(
+            packageName: lockedPackageName!,
+            sessionDurationSeconds: sessionDurationSeconds,
+            isTimerExpired: false,
+          );
+          print('DEBUG: Updated database for manual close - $lockedPackageName, duration: ${sessionDurationSeconds}s');
+        }
+      } catch (e) {
+        print('Error updating database for manual close: $e');
+      }
+
       await PlatformService.permanentlyBlockApp(lockedPackageName!);
       try {
         await PlatformService.resetPauseFlag(lockedPackageName!);
@@ -223,6 +279,9 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
       }
     });
 
+    // Check for timer events from SharedPreferences
+    _checkTimerEvents();
+
 
     // Check for timer expiration from multiple sources
     bool timerExpired = false;
@@ -248,7 +307,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
 
     if (lockedPackageName == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Get.offAllNamed(AppRoutes.home);
+        Get.offAllNamed(AppRoutes.mainNavigation);
       });
       return;
     }
@@ -309,8 +368,99 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     showButtons.value = false;
   }
 
-  void _handleTimerExpiration() {
+  /// Check for timer events from SharedPreferences and update database
+  Future<void> _checkTimerEvents() async {
+    if (lockedPackageName == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final packageName = lockedPackageName!;
+
+    // Check for timer started
+    final timerStarted = prefs.getString("timer_started_$packageName");
+    if (timerStarted == "true") {
+      final duration = prefs.getInt("timer_duration_$packageName") ?? 0;
+      await _databaseService.setAppTimer(
+        packageName: packageName,
+        timerMinutes: (duration / 60).round(),
+      );
+      print('DEBUG: Timer started for $packageName with duration ${duration}s');
+      
+      // Clear the flag
+      await prefs.remove("timer_started_$packageName");
+      await prefs.remove("timer_duration_$packageName");
+    }
+
+    // Check for timer stopped early
+    final timerStopped = prefs.getString("timer_stopped_$packageName");
+    if (timerStopped == "true") {
+      final elapsedTime = prefs.getInt("timer_elapsed_$packageName") ?? 0;
+      await _databaseService.updateAppUsage(
+        packageName: packageName,
+        sessionDurationSeconds: elapsedTime,
+        isTimerExpired: false,
+      );
+      print('DEBUG: Timer stopped early for $packageName, elapsed: ${elapsedTime}s');
+      
+      // Clear the flag
+      await prefs.remove("timer_stopped_$packageName");
+      await prefs.remove("timer_elapsed_$packageName");
+    }
+
+    // Check for timer expired
+    final timerExpired = prefs.getString("timer_expired_$packageName");
+    if (timerExpired == "true") {
+      // Get the actual elapsed time from SharedPreferences
+      final elapsedTime = prefs.getInt("timer_elapsed_$packageName") ?? 0;
+      final app = await _databaseService.getLockedApp(packageName);
+      if (app != null) {
+        final totalLockedTime = (app['total_locked_time'] ?? 0) as int;
+        // Use the actual elapsed time, not the full timer duration
+        final sessionDurationSeconds = elapsedTime > 0 ? elapsedTime : (totalLockedTime * 60);
+        
+        await _databaseService.updateAppUsage(
+          packageName: packageName,
+          sessionDurationSeconds: sessionDurationSeconds,
+          isTimerExpired: true,
+        );
+        print('DEBUG: Timer expired for $packageName, actual duration: ${sessionDurationSeconds}s');
+      }
+      
+      // Clear the flag
+      await prefs.remove("timer_expired_$packageName");
+      await prefs.remove("timer_elapsed_$packageName");
+    }
+  }
+
+  void _handleTimerExpiration() async {
     _isTimerExpired = true; // Set the flag
+
+    // Update database with timer completion
+    if (lockedPackageName != null) {
+      try {
+        // Get the actual elapsed time from SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        final elapsedTime = prefs.getInt("timer_elapsed_${lockedPackageName}") ?? 0;
+        
+        // Get the timer duration from the database
+        final app = await _databaseService.getLockedApp(lockedPackageName!);
+        if (app != null) {
+          final totalLockedTime = (app['total_locked_time'] ?? 0) as int;
+          // Use the actual elapsed time, not the full timer duration
+          final sessionDurationSeconds = elapsedTime > 0 ? elapsedTime : (totalLockedTime * 60);
+          
+          // Update app usage in database
+          await _databaseService.updateAppUsage(
+            packageName: lockedPackageName!,
+            sessionDurationSeconds: sessionDurationSeconds,
+            isTimerExpired: true,
+          );
+          
+          print('DEBUG: Updated database for timer expiration - $lockedPackageName, actual duration: ${sessionDurationSeconds}s');
+        }
+      } catch (e) {
+        print('Error updating database for timer expiration: $e');
+      }
+    }
 
     // Force the correct state for timer expiration
     _forcePauseScreenState();

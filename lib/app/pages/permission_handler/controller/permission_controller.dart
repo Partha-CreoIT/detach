@@ -106,8 +106,8 @@ class PermissionController extends GetxController with WidgetsBindingObserver {
         canProceed = hasBatteryPermission.value;
         break;
       case 3:
-        // On the last page, navigate to home
-        Get.offAllNamed(AppRoutes.home);
+        // On the last page, navigate to main navigation
+        Get.offAllNamed(AppRoutes.mainNavigation);
         return;
     }
 
