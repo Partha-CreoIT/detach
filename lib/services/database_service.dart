@@ -4,7 +4,7 @@ import 'package:path/path.dart';
 class DatabaseService {
   static Database? _database;
   static const String _databaseName = 'detach_stats.db';
-  static const int _databaseVersion = 1;
+  static const int _databaseVersion = 2;
 
   // Table names
   static const String tableAppUsage = 'app_usage';
@@ -43,6 +43,7 @@ class DatabaseService {
       path,
       version: _databaseVersion,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -110,6 +111,27 @@ class DatabaseService {
       )
     ''');
 
+    // Weekly usage table - tracks daily usage for each app by day of week
+    await db.execute('''
+      CREATE TABLE weekly_usage (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        package_name TEXT NOT NULL,
+        app_name TEXT NOT NULL,
+        week_start_date TEXT NOT NULL,
+        monday_usage INTEGER NOT NULL DEFAULT 0,
+        tuesday_usage INTEGER NOT NULL DEFAULT 0,
+        wednesday_usage INTEGER NOT NULL DEFAULT 0,
+        thursday_usage INTEGER NOT NULL DEFAULT 0,
+        friday_usage INTEGER NOT NULL DEFAULT 0,
+        saturday_usage INTEGER NOT NULL DEFAULT 0,
+        sunday_usage INTEGER NOT NULL DEFAULT 0,
+        total_week_usage INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        UNIQUE(package_name, week_start_date)
+      )
+    ''');
+
     // Create indexes for better performance
     await db.execute('CREATE INDEX idx_app_usage_package ON $tableAppUsage(package_name)');
     await db.execute('CREATE INDEX idx_app_usage_date ON $tableAppUsage(created_at)');
@@ -118,6 +140,38 @@ class DatabaseService {
     await db.execute('CREATE INDEX idx_pause_sessions_date ON $tablePauseSessions(created_at)');
     await db.execute('CREATE INDEX idx_locked_apps_package ON $tableLockedApps(package_name)');
     await db.execute('CREATE INDEX idx_locked_apps_status ON $tableLockedApps(lock_status)');
+    await db.execute('CREATE INDEX idx_weekly_usage_package ON weekly_usage(package_name)');
+    await db.execute('CREATE INDEX idx_weekly_usage_week ON weekly_usage(week_start_date)');
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Add weekly_usage table for version 2
+      await db.execute('''
+        CREATE TABLE weekly_usage (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          package_name TEXT NOT NULL,
+          app_name TEXT NOT NULL,
+          week_start_date TEXT NOT NULL,
+          monday_usage INTEGER NOT NULL DEFAULT 0,
+          tuesday_usage INTEGER NOT NULL DEFAULT 0,
+          wednesday_usage INTEGER NOT NULL DEFAULT 0,
+          thursday_usage INTEGER NOT NULL DEFAULT 0,
+          friday_usage INTEGER NOT NULL DEFAULT 0,
+          saturday_usage INTEGER NOT NULL DEFAULT 0,
+          sunday_usage INTEGER NOT NULL DEFAULT 0,
+          total_week_usage INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          UNIQUE(package_name, week_start_date)
+        )
+      ''');
+
+      await db.execute('CREATE INDEX idx_weekly_usage_package ON weekly_usage(package_name)');
+      await db.execute('CREATE INDEX idx_weekly_usage_week ON weekly_usage(week_start_date)');
+
+      print('DEBUG: Database upgraded to version 2 - added weekly_usage table');
+    }
   }
 
   // App Usage Methods
@@ -635,7 +689,7 @@ class DatabaseService {
     final app = results.first;
 
     // Get daily usage for the past 7 days
-    final dailyUsage = await _getAppDailyUsage(packageName);
+    final dailyUsage = await getAppDailyUsage(packageName);
 
     return {
       ...app,
@@ -644,21 +698,149 @@ class DatabaseService {
   }
 
   /// Get daily usage for a specific app over the past 7 days
-  Future<List<Map<String, dynamic>>> _getAppDailyUsage(String packageName) async {
+  Future<List<Map<String, dynamic>>> getAppDailyUsage(String packageName) async {
     final db = await database;
     final now = DateTime.now();
-    final weekStart = now.subtract(const Duration(days: 6));
+    final weekStart = _getWeekStart();
+    final weekStartDate = _formatDate(weekStart);
 
-    // This would need to be enhanced with actual usage tracking
-    // For now, return empty data structure
-    return List.generate(7, (index) {
-      final date = weekStart.add(Duration(days: index));
+    // Get weekly usage data
+    final weeklyData = await db.query(
+      'weekly_usage',
+      where: 'package_name = ? AND week_start_date = ?',
+      whereArgs: [packageName, weekStartDate],
+    );
+
+    if (weeklyData.isEmpty) {
+      // Return empty data for the week
+      return List.generate(7, (index) {
+        final dayOfWeek = index + 1; // 1 = Monday, 7 = Sunday
+        return {
+          'day': _getDayName(dayOfWeek),
+          'usage_seconds': 0,
+          'day_of_week': dayOfWeek,
+        };
+      });
+    }
+
+    final record = weeklyData.first;
+    return [
+      {
+        'day': 'Mon',
+        'usage_seconds': record['monday_usage'] ?? 0,
+        'day_of_week': 1,
+      },
+      {
+        'day': 'Tue',
+        'usage_seconds': record['tuesday_usage'] ?? 0,
+        'day_of_week': 2,
+      },
+      {
+        'day': 'Wed',
+        'usage_seconds': record['wednesday_usage'] ?? 0,
+        'day_of_week': 3,
+      },
+      {
+        'day': 'Thu',
+        'usage_seconds': record['thursday_usage'] ?? 0,
+        'day_of_week': 4,
+      },
+      {
+        'day': 'Fri',
+        'usage_seconds': record['friday_usage'] ?? 0,
+        'day_of_week': 5,
+      },
+      {
+        'day': 'Sat',
+        'usage_seconds': record['saturday_usage'] ?? 0,
+        'day_of_week': 6,
+      },
+      {
+        'day': 'Sun',
+        'usage_seconds': record['sunday_usage'] ?? 0,
+        'day_of_week': 7,
+      },
+    ];
+  }
+
+  /// Get weekly usage data for all apps
+  Future<List<Map<String, dynamic>>> getWeeklyUsageData() async {
+    final db = await database;
+    final weekStart = _getWeekStart();
+    final weekStartDate = _formatDate(weekStart);
+
+    return await db.query(
+      'weekly_usage',
+      where: 'week_start_date = ?',
+      whereArgs: [weekStartDate],
+      orderBy: 'total_week_usage DESC',
+    );
+  }
+
+  /// Check and clear old weekly data (auto-clear on Sunday night)
+  Future<void> checkAndClearOldWeeklyData() async {
+    final now = DateTime.now();
+    final isSunday = now.weekday == 7; // Sunday
+    final isNight = now.hour >= 23; // After 11 PM
+
+    if (isSunday && isNight) {
+      // Clear all weekly usage data older than current week
+      final db = await database;
+      final currentWeekStart = _getWeekStart();
+      final currentWeekStartDate = _formatDate(currentWeekStart);
+
+      // Delete all weekly usage records except current week
+      await db.delete(
+        'weekly_usage',
+        where: 'week_start_date != ?',
+        whereArgs: [currentWeekStartDate],
+      );
+
+      // Also reset the weekly_usage_this_week in locked_apps table
+      await db.update(
+        tableLockedApps,
+        {'weekly_usage_this_week': 0},
+      );
+
+      print('DEBUG: Cleared old weekly usage data');
+    }
+  }
+
+  /// Get current week's usage data for chart display
+  Future<List<Map<String, dynamic>>> getCurrentWeekUsageData() async {
+    final db = await database;
+    final weekStart = _getWeekStart();
+    final weekStartDate = _formatDate(weekStart);
+
+    // Get all apps' weekly usage for current week
+    final weeklyData = await db.query(
+      'weekly_usage',
+      where: 'week_start_date = ?',
+      whereArgs: [weekStartDate],
+    );
+
+    // Aggregate data by day of week
+    final Map<int, int> dailyTotals = {};
+    for (int i = 1; i <= 7; i++) {
+      dailyTotals[i] = 0;
+    }
+
+    for (final record in weeklyData) {
+      for (int day = 1; day <= 7; day++) {
+        final dayColumn = _getDayColumn(day);
+        final dayUsage = (record[dayColumn] ?? 0) as int;
+        dailyTotals[day] = (dailyTotals[day] ?? 0) + dayUsage;
+      }
+    }
+
+    // Convert to list format for chart
+    return dailyTotals.entries.map((entry) {
       return {
-        'date': _formatDate(date),
-        'usage_seconds': 0, // This will be populated with real data
-        'sessions': 0,
+        'day': _getDayName(entry.key),
+        'usage_seconds': entry.value,
+        'day_of_week': entry.key,
       };
-    });
+    }).toList();
   }
 
   /// Reset daily usage for an app
@@ -689,6 +871,113 @@ class DatabaseService {
       where: 'package_name = ?',
       whereArgs: [packageName],
     );
+
+    // Also update the new weekly usage table
+    await _updateWeeklyUsageTable(packageName, sessionDuration);
+  }
+
+  /// Update weekly usage table with daily breakdown
+  Future<void> _updateWeeklyUsageTable(String packageName, int sessionDuration) async {
+    final db = await database;
+    final app = await getLockedApp(packageName);
+    if (app == null) return;
+
+    final now = DateTime.now();
+    final weekStart = _getWeekStart();
+    final weekStartDate = _formatDate(weekStart);
+    final dayOfWeek = now.weekday; // 1 = Monday, 7 = Sunday
+
+    // Get or create weekly usage record
+    final existingRecord = await db.query(
+      'weekly_usage',
+      where: 'package_name = ? AND week_start_date = ?',
+      whereArgs: [packageName, weekStartDate],
+    );
+
+    final currentTime = DateTime.now().millisecondsSinceEpoch;
+    final dayColumn = _getDayColumn(dayOfWeek);
+
+    if (existingRecord.isNotEmpty) {
+      // Update existing record
+      final record = existingRecord.first;
+      final currentDayUsage = (record[dayColumn] ?? 0) as int;
+      final currentTotalUsage = (record['total_week_usage'] ?? 0) as int;
+
+      await db.update(
+        'weekly_usage',
+        {
+          dayColumn: currentDayUsage + sessionDuration,
+          'total_week_usage': currentTotalUsage + sessionDuration,
+          'updated_at': currentTime,
+        },
+        where: 'package_name = ? AND week_start_date = ?',
+        whereArgs: [packageName, weekStartDate],
+      );
+    } else {
+      // Create new record
+      final initialData = {
+        'package_name': packageName,
+        'app_name': app['app_name'] ?? 'Unknown',
+        'week_start_date': weekStartDate,
+        'monday_usage': 0,
+        'tuesday_usage': 0,
+        'wednesday_usage': 0,
+        'thursday_usage': 0,
+        'friday_usage': 0,
+        'saturday_usage': 0,
+        'sunday_usage': 0,
+        'total_week_usage': sessionDuration,
+        'created_at': currentTime,
+        'updated_at': currentTime,
+      };
+      initialData[dayColumn] = sessionDuration;
+
+      await db.insert('weekly_usage', initialData);
+    }
+  }
+
+  /// Get the column name for a given day of week
+  String _getDayColumn(int dayOfWeek) {
+    switch (dayOfWeek) {
+      case 1:
+        return 'monday_usage';
+      case 2:
+        return 'tuesday_usage';
+      case 3:
+        return 'wednesday_usage';
+      case 4:
+        return 'thursday_usage';
+      case 5:
+        return 'friday_usage';
+      case 6:
+        return 'saturday_usage';
+      case 7:
+        return 'sunday_usage';
+      default:
+        return 'monday_usage';
+    }
+  }
+
+  /// Get day name for a given day of week
+  String _getDayName(int dayOfWeek) {
+    switch (dayOfWeek) {
+      case 1:
+        return 'Mon';
+      case 2:
+        return 'Tue';
+      case 3:
+        return 'Wed';
+      case 4:
+        return 'Thu';
+      case 5:
+        return 'Fri';
+      case 6:
+        return 'Sat';
+      case 7:
+        return 'Sun';
+      default:
+        return 'Mon';
+    }
   }
 
   /// Get week start date (Monday)

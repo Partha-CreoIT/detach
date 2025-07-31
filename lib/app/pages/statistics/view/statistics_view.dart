@@ -6,6 +6,7 @@ import '../controller/statistics_controller.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
+import 'package:detach/services/database_service.dart';
 
 class StatisticsView extends GetView<StatisticsController> {
   const StatisticsView({super.key});
@@ -71,6 +72,7 @@ class StatisticsView extends GetView<StatisticsController> {
     final stats = controller.overallStats;
     final totalTime = stats['total_screen_time_seconds'] ?? 0;
     final totalApps = stats['unique_apps_used'] ?? 0;
+    final weeklyData = controller.weeklyUsageData;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -85,7 +87,7 @@ class StatisticsView extends GetView<StatisticsController> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Overall Screen Time',
+            'Weekly Screen Time',
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -94,13 +96,18 @@ class StatisticsView extends GetView<StatisticsController> {
           ),
           const SizedBox(height: 16),
 
-          // Simple bar chart for overall usage
+          // Weekly bar chart
           SizedBox(
             height: 200,
             child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
-                maxY: totalTime > 0 ? totalTime.toDouble() : 100,
+                maxY: weeklyData.isNotEmpty
+                    ? weeklyData
+                        .map((d) => (d['usage_seconds'] ?? 0) as int)
+                        .reduce((a, b) => a > b ? a : b)
+                        .toDouble()
+                    : 100,
                 barTouchData: BarTouchData(enabled: false),
                 titlesData: FlTitlesData(
                   show: true,
@@ -110,13 +117,18 @@ class StatisticsView extends GetView<StatisticsController> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        return Text(
-                          'Total',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                          ),
-                        );
+                        // Always show day labels regardless of data
+                        final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                        if (value.toInt() >= 0 && value.toInt() < days.length) {
+                          return Text(
+                            days[value.toInt()],
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                            ),
+                          );
+                        }
+                        return const Text('');
                       },
                     ),
                   ),
@@ -136,20 +148,46 @@ class StatisticsView extends GetView<StatisticsController> {
                     ),
                   ),
                 ),
-                borderData: FlBorderData(show: false),
-                barGroups: [
-                  BarChartGroupData(
-                    x: 0,
+                borderData: FlBorderData(
+                  show: true,
+                  border: Border(
+                    bottom: BorderSide(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                      width: 1,
+                    ),
+                    left: BorderSide(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                ),
+                gridData: FlGridData(
+                  show: true,
+                  horizontalInterval: 1,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (value) {
+                    return FlLine(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+                      strokeWidth: 1,
+                    );
+                  },
+                ),
+                barGroups: List.generate(7, (index) {
+                  final data = weeklyData.isNotEmpty && index < weeklyData.length
+                      ? weeklyData[index]
+                      : {'usage_seconds': 0};
+                  return BarChartGroupData(
+                    x: index,
                     barRods: [
                       BarChartRodData(
-                        toY: totalTime.toDouble(),
+                        toY: (data['usage_seconds'] ?? 0).toDouble(),
                         color: Theme.of(context).colorScheme.primary,
-                        width: 60,
+                        width: 20,
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ],
-                  ),
-                ],
+                  );
+                }),
               ),
             ),
           ),
@@ -413,78 +451,115 @@ class StatisticsView extends GetView<StatisticsController> {
   }
 
   Widget _buildDailyUsageChart(BuildContext context, String packageName) {
-    // Generate sample daily data (in real app, this would come from database)
-    final dailyData = List.generate(7, (index) {
-      final day = DateTime.now().subtract(Duration(days: 6 - index));
-      return {
-        'date': day,
-        'usage': (index * 5 + 10) * 60, // Sample data in seconds
-      };
-    });
+    // Get weekly usage data for this specific app
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _getAppWeeklyUsageData(packageName),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    return BarChart(
-      BarChartData(
-        alignment: BarChartAlignment.spaceAround,
-        maxY: dailyData.isNotEmpty
-            ? dailyData.map((d) => d['usage'] as int).reduce((a, b) => a > b ? a : b).toDouble()
-            : 100.0,
-        barTouchData: BarTouchData(enabled: false),
-        titlesData: FlTitlesData(
-          show: true,
-          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (value, meta) {
-                if (value.toInt() >= 0 && value.toInt() < dailyData.length) {
-                  final day = dailyData[value.toInt()]['date'] as DateTime;
-                  return Text(
-                    '${day.day}/${day.month}',
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                    ),
-                  );
-                }
-                return const Text('');
-              },
+        final dailyData = snapshot.data!;
+
+        return BarChart(
+          BarChartData(
+            alignment: BarChartAlignment.spaceAround,
+            maxY: dailyData.isNotEmpty
+                ? dailyData
+                    .map((d) => (d['usage_seconds'] ?? 0) as int)
+                    .reduce((a, b) => a > b ? a : b)
+                    .toDouble()
+                : 100.0,
+            barTouchData: BarTouchData(enabled: false),
+            titlesData: FlTitlesData(
+              show: true,
+              rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (value, meta) {
+                    // Always show day labels regardless of data
+                    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                    if (value.toInt() >= 0 && value.toInt() < days.length) {
+                      return Text(
+                        days[value.toInt()],
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                        ),
+                      );
+                    }
+                    return const Text('');
+                  },
+                ),
+              ),
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 40,
+                  getTitlesWidget: (value, meta) {
+                    return Text(
+                      '${(value / 60).round()}m',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                      ),
+                    );
+                  },
+                ),
+              ),
             ),
-          ),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 40,
-              getTitlesWidget: (value, meta) {
-                return Text(
-                  '${(value / 60).round()}m',
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                  ),
+            borderData: FlBorderData(
+              show: true,
+              border: Border(
+                bottom: BorderSide(
+                  color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                  width: 1,
+                ),
+                left: BorderSide(
+                  color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+            ),
+            gridData: FlGridData(
+              show: true,
+              horizontalInterval: 1,
+              drawVerticalLine: false,
+              getDrawingHorizontalLine: (value) {
+                return FlLine(
+                  color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+                  strokeWidth: 1,
                 );
               },
             ),
+            barGroups: List.generate(7, (index) {
+              final data = dailyData.isNotEmpty && index < dailyData.length
+                  ? dailyData[index]
+                  : {'usage_seconds': 0};
+              return BarChartGroupData(
+                x: index,
+                barRods: [
+                  BarChartRodData(
+                    toY: (data['usage_seconds'] ?? 0).toDouble(),
+                    color: Theme.of(context).colorScheme.primary,
+                    width: 20,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ],
+              );
+            }),
           ),
-        ),
-        borderData: FlBorderData(show: false),
-        barGroups: dailyData.asMap().entries.map((entry) {
-          final index = entry.key;
-          final data = entry.value;
-          return BarChartGroupData(
-            x: index,
-            barRods: [
-              BarChartRodData(
-                toY: (data['usage'] as int).toDouble(),
-                color: Theme.of(context).colorScheme.primary,
-                width: 20,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ],
-          );
-        }).toList(),
-      ),
+        );
+      },
     );
+  }
+
+  Future<List<Map<String, dynamic>>> _getAppWeeklyUsageData(String packageName) async {
+    // This will use the database service to get weekly usage for this specific app
+    final databaseService = DatabaseService();
+    return await databaseService.getAppDailyUsage(packageName);
   }
 
   Widget _buildDetailStat(BuildContext context, String label, String value, IconData icon) {

@@ -13,6 +13,7 @@ class StatisticsController extends GetxController {
   final RxList<Map<String, dynamic>> topAppsByUsage = <Map<String, dynamic>>[].obs;
   final RxList<Map<String, dynamic>> topPausedApps = <Map<String, dynamic>>[].obs;
   final RxMap<String, dynamic> overallStats = <String, dynamic>{}.obs;
+  final RxList<Map<String, dynamic>> weeklyUsageData = <Map<String, dynamic>>[].obs;
 
   // Date range
   final Rx<DateTime> startDate = DateTime.now().subtract(const Duration(days: 7)).obs;
@@ -37,11 +38,17 @@ class StatisticsController extends GetxController {
     try {
       isLoading.value = true;
 
+      // Check and clear old weekly data
+      await _databaseService.checkAndClearOldWeeklyData();
+
       // Load locked apps daily stats
       await _loadLockedAppsDailyStats();
 
       // Load locked apps weekly stats
       await _loadLockedAppsWeeklyStats();
+
+      // Load weekly usage data for charts
+      await _loadWeeklyUsageData();
 
       // Load overall stats
       await _loadOverallStats();
@@ -68,6 +75,12 @@ class StatisticsController extends GetxController {
   Future<void> _loadLockedAppsWeeklyStats() async {
     final stats = await _databaseService.getLockedAppsWeeklyStats();
     topPausedApps.assignAll(stats);
+  }
+
+  Future<void> _loadWeeklyUsageData() async {
+    final data = await _databaseService.getCurrentWeekUsageData();
+    weeklyUsageData.assignAll(data);
+    print('DEBUG: Loaded weekly usage data: ${data.length} days');
   }
 
   Future<void> _loadWeeklyStats() async {
