@@ -55,11 +55,12 @@ class StatisticsController extends GetxController {
   Future<void> _loadLockedAppsDailyStats() async {
     // Debug: Check what's in the database
     await _databaseService.debugGetAllLockedApps();
-    
+
     final stats = await _databaseService.getLockedAppsDailyStats();
     print('DEBUG: getLockedAppsDailyStats returned ${stats.length} apps');
     for (final app in stats) {
-      print('  - ${app['app_name']}: time_used=${app['time_used']}, total_locked_time=${app['total_locked_time']}');
+      print(
+          '  - ${app['app_name']}: time_used=${app['time_used']}, total_locked_time=${app['total_locked_time']}');
     }
     topAppsByUsage.assignAll(stats);
   }
@@ -100,10 +101,15 @@ class StatisticsController extends GetxController {
     int totalTimeUsed = 0;
     int totalApps = dailyStats.length; // Count all locked apps
 
+    print('DEBUG: _loadOverallStats - Found ${dailyStats.length} apps');
     for (final app in dailyStats) {
       final timeUsed = (app['time_used'] ?? 0) as int;
+      final appName = app['app_name'] ?? 'Unknown';
+      final packageName = app['package_name'] ?? 'Unknown';
+      print('DEBUG: _loadOverallStats - $appName ($packageName): time_used=$timeUsed seconds');
       totalTimeUsed += timeUsed;
     }
+    print('DEBUG: _loadOverallStats - Total time used: $totalTimeUsed seconds');
 
     // Calculate total sessions
     int totalSessions = 0;
@@ -183,6 +189,12 @@ class StatisticsController extends GetxController {
 
   // Refresh statistics
   Future<void> refreshStatistics() async {
+    await _loadStatistics();
+  }
+
+  // Debug method to reset all time used (for testing)
+  Future<void> debugResetAllTimeUsed() async {
+    await _databaseService.debugResetAllTimeUsed();
     await _loadStatistics();
   }
 }

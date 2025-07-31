@@ -578,9 +578,20 @@ class DatabaseService {
     final results = await db.query(tableLockedApps);
     print('DEBUG: Found ${results.length} apps in locked_apps table:');
     for (final app in results) {
-      print('  - ${app['app_name']} (${app['package_name']}): time_used=${app['time_used']}, total_locked_time=${app['total_locked_time']}, daily_usage_limit=${app['daily_usage_limit']}');
+      print(
+          '  - ${app['app_name']} (${app['package_name']}): time_used=${app['time_used']}, total_locked_time=${app['total_locked_time']}, daily_usage_limit=${app['daily_usage_limit']}');
     }
     return results;
+  }
+
+  /// Debug method to reset time_used for all apps (for testing)
+  Future<void> debugResetAllTimeUsed() async {
+    final db = await database;
+    await db.update(
+      tableLockedApps,
+      {'time_used': 0, 'total_sessions': 0, 'average_session_time': 0},
+    );
+    print('DEBUG: Reset all time_used to 0');
   }
 
   /// Test method to add a sample locked app for debugging
@@ -706,7 +717,7 @@ class DatabaseService {
   /// Set timer for a locked app (called when user sets timer on pause screen)
   Future<void> setAppTimer({
     required String packageName,
-    required int timerMinutes,
+    required int timerSeconds,
   }) async {
     final db = await database;
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -714,8 +725,8 @@ class DatabaseService {
     await db.update(
       tableLockedApps,
       {
-        'total_locked_time': timerMinutes,
-        'remaining_time': timerMinutes,
+        'total_locked_time': timerSeconds,
+        'remaining_time': timerSeconds,
         'updated_at': now,
       },
       where: 'package_name = ?',
@@ -747,6 +758,10 @@ class DatabaseService {
     final newTotalSessions = currentTotalSessions + 1;
     final newAverageSessionTime =
         (currentAverageSessionTime + sessionDurationSeconds) ~/ newTotalSessions;
+
+    print(
+        'DEBUG: updateAppUsage - $packageName: currentTimeUsed=$currentTimeUsed, sessionDurationSeconds=$sessionDurationSeconds, newTimeUsed=$newTimeUsed, isTimerExpired=$isTimerExpired');
+    print('DEBUG: updateAppUsage - Stack trace: ${StackTrace.current}');
 
     // Update the app record
     await db.update(

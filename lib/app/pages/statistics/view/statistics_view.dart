@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:detach/services/theme_service.dart';
 import '../controller/statistics_controller.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:installed_apps/app_info.dart';
+import 'package:installed_apps/installed_apps.dart';
 
 class StatisticsView extends GetView<StatisticsController> {
   const StatisticsView({super.key});
@@ -24,6 +26,17 @@ class StatisticsView extends GetView<StatisticsController> {
         backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         centerTitle: true,
+        actions: [
+          // Debug button to reset time used
+          IconButton(
+            onPressed: () => controller.debugResetAllTimeUsed(),
+            icon: Icon(
+              Icons.refresh,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+            tooltip: 'Reset Time Used (Debug)',
+          ),
+        ],
       ),
       body: Obx(() {
         if (controller.isLoading.value) {
@@ -43,7 +56,7 @@ class StatisticsView extends GetView<StatisticsController> {
                 // Overall Screen Time Graph
                 _buildOverallScreenTimeGraph(context),
                 const SizedBox(height: 24),
-                
+
                 // Locked Apps List
                 _buildLockedAppsList(context),
               ],
@@ -80,7 +93,7 @@ class StatisticsView extends GetView<StatisticsController> {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           // Simple bar chart for overall usage
           SizedBox(
             height: 200,
@@ -140,9 +153,9 @@ class StatisticsView extends GetView<StatisticsController> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Stats summary
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -211,7 +224,6 @@ class StatisticsView extends GetView<StatisticsController> {
           ),
         ),
         const SizedBox(height: 16),
-        
         Container(
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
@@ -233,21 +245,22 @@ class StatisticsView extends GetView<StatisticsController> {
               final appName = app['app_name'] ?? 'Unknown App';
               final timeUsed = app['time_used'] ?? 0;
               final totalSessions = app['total_sessions'] ?? 0;
-              
-                             return ListTile(
-                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                 leading: FutureBuilder<Widget>(
-                   future: _getAppIcon(app['package_name'] ?? ''),
-                   builder: (context, snapshot) {
-                     return CircleAvatar(
-                       backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                       child: snapshot.data ?? Icon(
-                         Icons.phone_android,
-                         color: Theme.of(context).colorScheme.primary,
-                       ),
-                     );
-                   },
-                 ),
+
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                leading: FutureBuilder<Widget>(
+                  future: _getAppIcon(app['package_name'] ?? ''),
+                  builder: (context, snapshot) {
+                    return CircleAvatar(
+                      backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      child: snapshot.data ??
+                          Icon(
+                            Icons.phone_android,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                    );
+                  },
+                ),
                 title: Text(
                   appName,
                   style: GoogleFonts.inter(
@@ -256,13 +269,13 @@ class StatisticsView extends GetView<StatisticsController> {
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
-                                 subtitle: Text(
-                   controller.formatDuration(timeUsed),
-                   style: GoogleFonts.inter(
-                     fontSize: 14,
-                     color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                   ),
-                 ),
+                subtitle: Text(
+                  controller.formatDuration(timeUsed),
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                ),
                 trailing: Icon(
                   Icons.chevron_right,
                   color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
@@ -302,7 +315,7 @@ class StatisticsView extends GetView<StatisticsController> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            
+
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -345,9 +358,9 @@ class StatisticsView extends GetView<StatisticsController> {
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   // Daily usage graph
                   Text(
                     'Daily Usage (Last 7 Days)',
@@ -358,36 +371,36 @@ class StatisticsView extends GetView<StatisticsController> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   SizedBox(
                     height: 200,
                     child: _buildDailyUsageChart(context, packageName),
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
-                                     // Stats grid
-                   Row(
-                     children: [
-                       Expanded(
-                         child: _buildDetailStat(
-                           context,
-                           'Total Time',
-                           controller.formatDuration(timeUsed),
-                           Icons.access_time,
-                         ),
-                       ),
-                       const SizedBox(width: 16),
-                       Expanded(
-                         child: _buildDetailStat(
-                           context,
-                           'Avg Session',
-                           controller.formatDuration(averageSessionTime),
-                           Icons.timer,
-                         ),
-                       ),
-                     ],
-                   ),
+
+                  // Stats grid
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDetailStat(
+                          context,
+                          'Total Time',
+                          controller.formatDuration(timeUsed),
+                          Icons.access_time,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildDetailStat(
+                          context,
+                          'Avg Session',
+                          controller.formatDuration(averageSessionTime),
+                          Icons.timer,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -412,7 +425,7 @@ class StatisticsView extends GetView<StatisticsController> {
     return BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
-        maxY: dailyData.isNotEmpty 
+        maxY: dailyData.isNotEmpty
             ? dailyData.map((d) => d['usage'] as int).reduce((a, b) => a > b ? a : b).toDouble()
             : 100.0,
         barTouchData: BarTouchData(enabled: false),
@@ -539,26 +552,44 @@ class StatisticsView extends GetView<StatisticsController> {
   /// Get app icon for the given package name
   Future<Widget> _getAppIcon(String packageName) async {
     try {
-      // For now, return a simple icon based on package name
-      // In a real app, you would use package_info_plus or similar to get actual app icons
-      if (packageName.contains('instagram')) {
-        return Icon(Icons.camera_alt, color: Colors.purple);
-      } else if (packageName.contains('gmail')) {
-        return Icon(Icons.email, color: Colors.red);
-      } else if (packageName.contains('drive')) {
-        return Icon(Icons.folder, color: Colors.blue);
-      } else if (packageName.contains('whatsapp')) {
-        return Icon(Icons.chat, color: Colors.green);
-      } else if (packageName.contains('youtube')) {
-        return Icon(Icons.play_circle, color: Colors.red);
-      } else if (packageName.contains('facebook')) {
-        return Icon(Icons.facebook, color: Colors.blue);
-      } else if (packageName.contains('twitter')) {
-        return Icon(Icons.flutter_dash, color: Colors.lightBlue);
+      // Get all installed apps and find the matching one
+      final apps = await InstalledApps.getInstalledApps(false, true);
+      final matchingApps = apps.where((app) => app.packageName == packageName).toList();
+
+      if (matchingApps.isNotEmpty && matchingApps.first.icon != null) {
+        return Image.memory(
+          matchingApps.first.icon!,
+          width: 40,
+          height: 40,
+          errorBuilder: (context, error, stackTrace) {
+            return _getFallbackIcon(packageName);
+          },
+        );
       } else {
-        return Icon(Icons.phone_android, color: Colors.grey);
+        return _getFallbackIcon(packageName);
       }
     } catch (e) {
+      return _getFallbackIcon(packageName);
+    }
+  }
+
+  Widget _getFallbackIcon(String packageName) {
+    // Fallback to package name based icons
+    if (packageName.contains('instagram')) {
+      return Icon(Icons.camera_alt, color: Colors.purple);
+    } else if (packageName.contains('gmail')) {
+      return Icon(Icons.email, color: Colors.red);
+    } else if (packageName.contains('drive')) {
+      return Icon(Icons.folder, color: Colors.blue);
+    } else if (packageName.contains('whatsapp')) {
+      return Icon(Icons.chat, color: Colors.green);
+    } else if (packageName.contains('youtube')) {
+      return Icon(Icons.play_circle, color: Colors.red);
+    } else if (packageName.contains('facebook')) {
+      return Icon(Icons.facebook, color: Colors.blue);
+    } else if (packageName.contains('twitter')) {
+      return Icon(Icons.flutter_dash, color: Colors.lightBlue);
+    } else {
       return Icon(Icons.phone_android, color: Colors.grey);
     }
   }

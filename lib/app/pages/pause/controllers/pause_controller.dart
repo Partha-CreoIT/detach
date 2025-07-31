@@ -25,8 +25,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   late Animation<double> progressAnim;
   String appNameStr = "";
 
-  String get displayAppName =>
-      appName.value.isNotEmpty ? appName.value : appNameStr;
+  String get displayAppName => appName.value.isNotEmpty ? appName.value : appNameStr;
 
   // Check if an app was closed early and handle accordingly
   Future<void> checkEarlyClose(String packageName) async {
@@ -42,8 +41,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
 
         if (startTimeStr != null) {
           final startTimeMillis = int.tryParse(startTimeStr) ?? 0;
-          final startTime =
-              DateTime.fromMillisecondsSinceEpoch(startTimeMillis);
+          final startTime = DateTime.fromMillisecondsSinceEpoch(startTimeMillis);
           final now = DateTime.now();
           final elapsedSeconds = now.difference(startTime).inSeconds;
 
@@ -56,14 +54,14 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
                 sessionDurationSeconds: elapsedSeconds,
                 isTimerExpired: false,
               );
-              print('DEBUG: Updated database for early exit - $packageName, duration: ${elapsedSeconds}s');
+              print(
+                  'DEBUG: Updated database for early exit - $packageName, duration: ${elapsedSeconds}s');
             } catch (e) {
               print('Error updating database for early exit: $e');
             }
 
             // Add the app back to blocked list
-            final blockedApps =
-                prefs.getStringList("blocked_apps")?.toList() ?? [];
+            final blockedApps = prefs.getStringList("blocked_apps")?.toList() ?? [];
 
             if (!blockedApps.contains(packageName)) {
               blockedApps.add(packageName);
@@ -129,12 +127,11 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
         // Set the timer in the database
         await _databaseService.setAppTimer(
           packageName: lockedPackageName!,
-          timerMinutes: selectedMinutes.value,
+          timerSeconds: sessionDuration,
         );
 
         // Use the pause channel since we're in PauseActivity
-        await PlatformService.launchAppWithTimerViaPause(
-            lockedPackageName!, sessionDuration);
+        await PlatformService.launchAppWithTimerViaPause(lockedPackageName!, sessionDuration);
         Get.back();
 
         // Log analytics
@@ -165,15 +162,21 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
       try {
         final app = await _databaseService.getLockedApp(lockedPackageName!);
         if (app != null) {
-          final totalLockedTime = (app['total_locked_time'] ?? 0) as int;
-          final sessionDurationSeconds = totalLockedTime * 60; // Assume full session
-          
-          await _databaseService.updateAppUsage(
-            packageName: lockedPackageName!,
-            sessionDurationSeconds: sessionDurationSeconds,
-            isTimerExpired: false,
-          );
-          print('DEBUG: Updated database for manual block - $lockedPackageName, duration: ${sessionDurationSeconds}s');
+          // Only add time if the timer hasn't already expired
+          if (!_isTimerExpired) {
+            final totalLockedTime = (app['total_locked_time'] ?? 0) as int;
+            final sessionDurationSeconds = totalLockedTime; // Assume full session
+
+            await _databaseService.updateAppUsage(
+              packageName: lockedPackageName!,
+              sessionDurationSeconds: sessionDurationSeconds,
+              isTimerExpired: false,
+            );
+            print(
+                'DEBUG: Updated database for manual block - $lockedPackageName, duration: ${sessionDurationSeconds}s');
+          } else {
+            print('DEBUG: Skipping database update for manual block - timer already expired');
+          }
         }
       } catch (e) {
         print('Error updating database for manual block: $e');
@@ -199,15 +202,21 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
       try {
         final app = await _databaseService.getLockedApp(lockedPackageName!);
         if (app != null) {
-          final totalLockedTime = (app['total_locked_time'] ?? 0) as int;
-          final sessionDurationSeconds = totalLockedTime * 60; // Assume full session
-          
-          await _databaseService.updateAppUsage(
-            packageName: lockedPackageName!,
-            sessionDurationSeconds: sessionDurationSeconds,
-            isTimerExpired: false,
-          );
-          print('DEBUG: Updated database for manual close - $lockedPackageName, duration: ${sessionDurationSeconds}s');
+          // Only add time if the timer hasn't already expired
+          if (!_isTimerExpired) {
+            final totalLockedTime = (app['total_locked_time'] ?? 0) as int;
+            final sessionDurationSeconds = totalLockedTime; // Assume full session
+
+            await _databaseService.updateAppUsage(
+              packageName: lockedPackageName!,
+              sessionDurationSeconds: sessionDurationSeconds,
+              isTimerExpired: false,
+            );
+            print(
+                'DEBUG: Updated database for manual close - $lockedPackageName, duration: ${sessionDurationSeconds}s');
+          } else {
+            print('DEBUG: Skipping database update for manual close - timer already expired');
+          }
         }
       } catch (e) {
         print('Error updating database for manual close: $e');
@@ -249,10 +258,16 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   List<AppInfo> allApps = [];
   RxBool showButtons = false.obs;
   bool _isTimerExpired = false; // Track timer expiration state
+  bool _timerExpirationHandled = false; // Prevent multiple timer expiration handling
+  int _checkTimerEventsCallCount = 0; // Track how many times _checkTimerEvents is called
 
   @override
   void onInit() {
     super.onInit();
+
+    // Reset timer expiration handling flag
+    _timerExpirationHandled = false;
+    _checkTimerEventsCallCount = 0;
 
     // Try multiple ways to get the package name
     lockedPackageName = Get.parameters['package'];
@@ -266,22 +281,22 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     }
 
     // Set up method channel listener for timer expiration
-    const MethodChannel('com.detach.app/pause')
-        .setMethodCallHandler((call) async {
-
+    const MethodChannel('com.detach.app/pause').setMethodCallHandler((call) async {
+      print('DEBUG: Method channel called with method: ${call.method}');
       if (call.method == 'timerExpired') {
+        print('DEBUG: Method channel timerExpired called');
         _handleTimerExpiration();
       } else if (call.method == 'initializePause') {
         final packageName = call.arguments['packageName'];
         final isTimerExpired = call.arguments['timerExpired'] ?? false;
         final timerState = call.arguments['timerState'];
+        print('DEBUG: Method channel initializePause called with isTimerExpired: $isTimerExpired');
         _initializeFromAndroid(packageName, isTimerExpired);
       }
     });
 
     // Check for timer events from SharedPreferences
     _checkTimerEvents();
-
 
     // Check for timer expiration from multiple sources
     bool timerExpired = false;
@@ -290,6 +305,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     if (Get.parameters['timer_expired'] == 'true') {
       timerExpired = true;
       _isTimerExpired = true;
+      print('DEBUG: Timer expired detected via Get.parameters');
     }
 
     // Check route string
@@ -297,12 +313,14 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     if (route.contains('timer_expired=true')) {
       timerExpired = true;
       _isTimerExpired = true;
+      print('DEBUG: Timer expired detected via route string');
     }
 
     // Check intent extras (for Android direct launch)
     if (Get.parameters['timer_state'] == 'expired') {
       timerExpired = true;
       _isTimerExpired = true;
+      print('DEBUG: Timer expired detected via timer_state');
     }
 
     if (lockedPackageName == null) {
@@ -372,8 +390,11 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   Future<void> _checkTimerEvents() async {
     if (lockedPackageName == null) return;
 
+    _checkTimerEventsCallCount++;
     final prefs = await SharedPreferences.getInstance();
     final packageName = lockedPackageName!;
+
+    print('DEBUG: _checkTimerEvents called for $packageName (call #$_checkTimerEventsCallCount)');
 
     // Check for timer started
     final timerStarted = prefs.getString("timer_started_$packageName");
@@ -381,10 +402,10 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
       final duration = prefs.getInt("timer_duration_$packageName") ?? 0;
       await _databaseService.setAppTimer(
         packageName: packageName,
-        timerMinutes: (duration / 60).round(),
+        timerSeconds: duration,
       );
       print('DEBUG: Timer started for $packageName with duration ${duration}s');
-      
+
       // Clear the flag
       await prefs.remove("timer_started_$packageName");
       await prefs.remove("timer_duration_$packageName");
@@ -400,7 +421,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
         isTimerExpired: false,
       );
       print('DEBUG: Timer stopped early for $packageName, elapsed: ${elapsedTime}s');
-      
+
       // Clear the flag
       await prefs.remove("timer_stopped_$packageName");
       await prefs.remove("timer_elapsed_$packageName");
@@ -408,15 +429,21 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
 
     // Check for timer expired
     final timerExpired = prefs.getString("timer_expired_$packageName");
-    if (timerExpired == "true") {
+    if (timerExpired == "true" && !_timerExpirationHandled) {
+      _timerExpirationHandled = true; // Prevent multiple handling
+
       // Get the actual elapsed time from SharedPreferences
       final elapsedTime = prefs.getInt("timer_elapsed_$packageName") ?? 0;
       final app = await _databaseService.getLockedApp(packageName);
       if (app != null) {
         final totalLockedTime = (app['total_locked_time'] ?? 0) as int;
+        final currentTimeUsed = (app['time_used'] ?? 0) as int;
         // Use the actual elapsed time, not the full timer duration
-        final sessionDurationSeconds = elapsedTime > 0 ? elapsedTime : (totalLockedTime * 60);
-        
+        final sessionDurationSeconds = elapsedTime > 0 ? elapsedTime : totalLockedTime;
+
+        print(
+            'DEBUG: Timer expired check - $packageName: elapsedTime=$elapsedTime, totalLockedTime=$totalLockedTime, currentTimeUsed=$currentTimeUsed, sessionDurationSeconds=$sessionDurationSeconds');
+
         await _databaseService.updateAppUsage(
           packageName: packageName,
           sessionDurationSeconds: sessionDurationSeconds,
@@ -424,7 +451,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
         );
         print('DEBUG: Timer expired for $packageName, actual duration: ${sessionDurationSeconds}s');
       }
-      
+
       // Clear the flag
       await prefs.remove("timer_expired_$packageName");
       await prefs.remove("timer_elapsed_$packageName");
@@ -432,7 +459,13 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
   }
 
   void _handleTimerExpiration() async {
+    if (_timerExpirationHandled) {
+      print('DEBUG: Timer expiration already handled, skipping');
+      return;
+    }
+
     _isTimerExpired = true; // Set the flag
+    _timerExpirationHandled = true; // Prevent multiple handling
 
     // Update database with timer completion
     if (lockedPackageName != null) {
@@ -440,22 +473,27 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
         // Get the actual elapsed time from SharedPreferences
         final prefs = await SharedPreferences.getInstance();
         final elapsedTime = prefs.getInt("timer_elapsed_${lockedPackageName}") ?? 0;
-        
+
         // Get the timer duration from the database
         final app = await _databaseService.getLockedApp(lockedPackageName!);
         if (app != null) {
           final totalLockedTime = (app['total_locked_time'] ?? 0) as int;
+          final currentTimeUsed = (app['time_used'] ?? 0) as int;
           // Use the actual elapsed time, not the full timer duration
-          final sessionDurationSeconds = elapsedTime > 0 ? elapsedTime : (totalLockedTime * 60);
-          
+          final sessionDurationSeconds = elapsedTime > 0 ? elapsedTime : totalLockedTime;
+
+          print(
+              'DEBUG: _handleTimerExpiration - $lockedPackageName: elapsedTime=$elapsedTime, totalLockedTime=$totalLockedTime, currentTimeUsed=$currentTimeUsed, sessionDurationSeconds=$sessionDurationSeconds');
+
           // Update app usage in database
           await _databaseService.updateAppUsage(
             packageName: lockedPackageName!,
             sessionDurationSeconds: sessionDurationSeconds,
             isTimerExpired: true,
           );
-          
-          print('DEBUG: Updated database for timer expiration - $lockedPackageName, actual duration: ${sessionDurationSeconds}s');
+
+          print(
+              'DEBUG: Updated database for timer expiration - $lockedPackageName, actual duration: ${sessionDurationSeconds}s');
         }
       } catch (e) {
         print('Error updating database for timer expiration: $e');
@@ -539,8 +577,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
     // Send broadcast to notify that pause screen is closed
     if (lockedPackageName != null) {
       try {
-        const MethodChannel('com.detach.app/pause')
-            .invokeMethod('pauseScreenClosed', {
+        const MethodChannel('com.detach.app/pause').invokeMethod('pauseScreenClosed', {
           'package_name': lockedPackageName,
         });
       } catch (e) {
