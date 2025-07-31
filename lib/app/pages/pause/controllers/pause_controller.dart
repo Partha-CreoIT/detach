@@ -47,7 +47,20 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
 
           // If the app was closed before the timer finished
           if (elapsedSeconds < totalDuration) {
-            // Update database with early exit
+            // Calculate remaining time
+            final remainingSeconds = totalDuration - elapsedSeconds;
+
+            // Save remaining time for resuming later
+            await prefs.setInt('app_session_${packageName}_remaining', remainingSeconds);
+            await prefs.setString(
+                'app_session_${packageName}_resume_time', now.millisecondsSinceEpoch.toString());
+
+            print('DEBUG: Early close detected for $packageName');
+            print(
+                'DEBUG: Total duration: ${totalDuration}s, Elapsed: ${elapsedSeconds}s, Remaining: ${remainingSeconds}s');
+            print('DEBUG: Saved remaining time for resume');
+
+            // Update database with partial session
             try {
               await _databaseService.updateAppUsage(
                 packageName: packageName,
@@ -60,23 +73,11 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
               print('Error updating database for early exit: $e');
             }
 
-            // Add the app back to blocked list
-            final blockedApps = prefs.getStringList("blocked_apps")?.toList() ?? [];
-
-            if (!blockedApps.contains(packageName)) {
-              blockedApps.add(packageName);
-              await prefs.setStringList("blocked_apps", blockedApps);
-
-              // Update the blocker service with new list
-              try {
-                await PlatformService.startBlockerService(blockedApps);
-              } catch (e) {
-                // Handle error silently
-              }
-            }
+            // DON'T add the app back to blocked list - keep it accessible
+            // The app will remain unblocked so user can resume the timer
           }
 
-          // Clear the session data
+          // Clear the original session data but keep remaining time
           await prefs.remove(sessionStartKey);
           await prefs.remove(sessionDurationKey);
         }

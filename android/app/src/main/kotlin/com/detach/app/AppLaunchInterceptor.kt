@@ -13,6 +13,10 @@ import android.os.Looper
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import android.app.Activity
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.os.Build
+import android.os.PowerManager
 import com.detach.app.MainActivity
 
 class AppLaunchInterceptor : Service() {
@@ -26,7 +30,9 @@ class AppLaunchInterceptor : Service() {
     
     // Service restart management
     private lateinit var serviceRestartManager: ServiceRestartManager
-    private var wakeLock: android.os.PowerManager.WakeLock? = null
+    private var wakeLock: PowerManager.WakeLock? = null
+    private lateinit var alarmManager: AlarmManager
+    private var restartPendingIntent: PendingIntent? = null
     
     // Enhanced startup app tracking
     private val startupRunningApps = mutableSetOf<String>()
@@ -48,9 +54,11 @@ class AppLaunchInterceptor : Service() {
     // Timer management for app sessions
     private val timerRunnables = mutableMapOf<String, Runnable>()
 
-    // Session tracking for timer-based app usage
+    // Session tracking for timer-based app usage with persistent storage
     private val appSessions = mutableMapOf<String, AppSession>()
     private val APP_SESSION_PREFIX = "app_session_"
+    private val REMAINING_TIME_PREFIX = "remaining_time_"
+    private val SESSION_START_PREFIX = "session_start_"
     
     // Enhanced foreground management
     private var isDetachInForeground = false
@@ -61,14 +69,101 @@ class AppLaunchInterceptor : Service() {
     companion object {
         private const val NOTIFICATION_CHANNEL_ID = "detach_service_channel"
         private const val FOREGROUND_SERVICE_ID = 1001
+        private const val RESTART_ACTION = "com.detach.app.RESTART_SERVICE"
+        private const val SERVICE_RESTART_INTERVAL = 5 * 60 * 1000L // 5 minutes
     }
 
     data class AppSession(
         val packageName: String,
         val startTime: Long,
         val duration: Long,
-        val isActive: Boolean = true
+        val isActive: Boolean = true,
+        val originalDuration: Long = duration // Track original duration for accurate remaining time
     )
+
+    // Service restart receiver
+    private val serviceRestartReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == RESTART_ACTION) {
+                android.util.Log.d(TAG, "Service restart triggered")
+                startService(Intent(context, AppLaunchInterceptor::class.java))
+            }
+        }
+    }
+
+    // Enhanced remaining time calculation with persistent storage
+    private fun saveRemainingTime(packageName: String, remainingSeconds: Int) {
+        val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+        val currentTime = System.currentTimeMillis()
+        
+        prefs.edit()
+            .putInt("${REMAINING_TIME_PREFIX}${packageName}", remainingSeconds)
+            .putLong("${SESSION_START_PREFIX}${packageName}", currentTime)
+            .putLong("session_pause_${packageName}", currentTime)
+            .apply()
+        
+        android.util.Log.d(TAG, "Saved remaining time for $packageName: ${remainingSeconds}s at ${currentTime}")
+    }
+
+    private fun getRemainingTime(packageName: String): Int {
+        val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+        val remainingSeconds = prefs.getInt("${REMAINING_TIME_PREFIX}${packageName}", 0)
+        val pauseTime = prefs.getLong("session_pause_${packageName}", 0L)
+        val currentTime = System.currentTimeMillis()
+        
+        // If pause time is too old (more than 24 hours), clear the data
+        if (pauseTime > 0 && (currentTime - pauseTime) > 24 * 60 * 60 * 1000) {
+            clearRemainingTime(packageName)
+            return 0
+        }
+        
+        return remainingSeconds
+    }
+
+    private fun clearRemainingTime(packageName: String) {
+        val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+        prefs.edit()
+            .remove("${REMAINING_TIME_PREFIX}${packageName}")
+            .remove("${SESSION_START_PREFIX}${packageName}")
+            .remove("session_pause_${packageName}")
+            .apply()
+        
+        android.util.Log.d(TAG, "Cleared remaining time for $packageName")
+    }
+
+    // Enhanced service persistence
+    private fun setupServiceRestart() {
+        alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        
+        val restartIntent = Intent(this, AppLaunchInterceptor::class.java).apply {
+            action = RESTART_ACTION
+        }
+        
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        } else {
+            PendingIntent.FLAG_UPDATE_CURRENT
+        }
+        
+        restartPendingIntent = PendingIntent.getService(this, 0, restartIntent, flags)
+        
+        // Set up periodic restart alarm
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                System.currentTimeMillis() + SERVICE_RESTART_INTERVAL,
+                restartPendingIntent!!
+            )
+        } else {
+            alarmManager.setExact(
+                AlarmManager.RTC_WAKEUP,
+                System.currentTimeMillis() + SERVICE_RESTART_INTERVAL,
+                restartPendingIntent!!
+            )
+        }
+        
+        android.util.Log.d(TAG, "Service restart alarm set for ${SERVICE_RESTART_INTERVAL}ms")
+    }
 
     private val resetBlockReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -253,6 +348,11 @@ class AppLaunchInterceptor : Service() {
         android.util.Log.d(TAG, "Timer set for $packageName: ${durationSeconds}s")
     }
 
+    private fun startTimerForApp(packageName: String, durationSeconds: Int) {
+        android.util.Log.d(TAG, "Starting timer for $packageName with ${durationSeconds}s remaining")
+        startAppSession(packageName, durationSeconds.toLong())
+    }
+
     private fun endAppSession(packageName: String) {
         // Remove from active sessions
         appSessions.remove(packageName)
@@ -303,6 +403,9 @@ class AppLaunchInterceptor : Service() {
             .putString("timer_expired_${packageName}", "true")
             .putInt("timer_elapsed_${packageName}", elapsedTime)
             .apply()
+        
+        // Clear any remaining time data since timer completed fully
+        clearRemainingTime(packageName)
         
         android.util.Log.d(TAG, "Saved timer expiration info for $packageName")
         
@@ -628,17 +731,33 @@ class AppLaunchInterceptor : Service() {
             if (foregroundApp != null && foregroundApp != lastForegroundApp) {
                 android.util.Log.d(TAG, "Foreground app changed: $lastForegroundApp -> $foregroundApp")
 
-                // If the previous foreground app had an active session, stop timer and re-block it
+                // If the previous foreground app had an active session, save remaining time instead of re-blocking
                 if (lastForegroundApp != null && appSessions.containsKey(lastForegroundApp)) {
-                    stopTimerForApp(lastForegroundApp!!)
-                    // Re-block the app (stopTimerForApp already does this, but ensure it)
-                    val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
-                    val blockedApps = prefs.getStringSet("blocked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
-                    if (!blockedApps.contains(lastForegroundApp)) {
-                        blockedApps.add(lastForegroundApp!!)
-                        prefs.edit().putStringSet("blocked_apps", blockedApps).apply()
+                    val session = appSessions[lastForegroundApp]
+                    if (session != null) {
+                        val currentTime = System.currentTimeMillis()
+                        val elapsedTime = ((currentTime - session.startTime) / 1000).toInt()
+                        val totalDuration = (session.duration / 1000).toInt()
+                        val remainingSeconds = totalDuration - elapsedTime
+                        
+                        stopTimerForApp(lastForegroundApp!!)
+                        
+                        // Save remaining time for resuming later using persistent storage
+                        if (remainingSeconds > 0) {
+                            saveRemainingTime(lastForegroundApp!!, remainingSeconds)
+                            android.util.Log.d(TAG, "User switched from $lastForegroundApp, saved remaining time: ${remainingSeconds}s")
+                        } else {
+                            // Timer expired, add back to blocked list
+                            val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+                            val blockedApps = prefs.getStringSet("blocked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+                            if (!blockedApps.contains(lastForegroundApp)) {
+                                blockedApps.add(lastForegroundApp!!)
+                                prefs.edit().putStringSet("blocked_apps", blockedApps).apply()
+                            }
+                            clearRemainingTime(lastForegroundApp!!)
+                            android.util.Log.d(TAG, "Timer expired for $lastForegroundApp, re-blocked")
+                        }
                     }
-                    android.util.Log.d(TAG, "User left $lastForegroundApp early, timer stopped and app re-blocked immediately.")
                 }
 
                 lastForegroundApp = foregroundApp
@@ -671,6 +790,20 @@ class AppLaunchInterceptor : Service() {
         if (appSessions.containsKey(packageName)) {
             android.util.Log.d(TAG, "App $packageName has active session, allowing")
             return
+        }
+        
+        // Check if this app has remaining timer time to resume using persistent storage
+        val remainingSeconds = getRemainingTime(packageName)
+        if (remainingSeconds > 0) {
+            android.util.Log.d(TAG, "Resuming timer for $packageName with ${remainingSeconds}s remaining")
+            
+            // Start the timer with remaining time
+            startTimerForApp(packageName, remainingSeconds)
+            
+            // Clear the remaining time data
+            clearRemainingTime(packageName)
+            
+            return // Allow the app to open with resumed timer
         }
         
         // Check if this app was recently unblocked
@@ -778,21 +911,36 @@ class AppLaunchInterceptor : Service() {
         // Check if this app has an active session
         val session = appSessions[packageName]
         if (session != null) {
-            // Immediately stop the timer
+            // Calculate remaining time using session data
+            val currentTime = System.currentTimeMillis()
+            val elapsedTime = ((currentTime - session.startTime) / 1000).toInt()
+            val totalDuration = (session.duration / 1000).toInt()
+            val remainingSeconds = totalDuration - elapsedTime
+            
+            // Stop the timer
             stopTimerForApp(packageName)
             
-            // Add the app back to blocked list immediately
-            val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
-            val blockedApps = prefs.getStringSet("blocked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
-            
-            if (!blockedApps.contains(packageName)) {
-                blockedApps.add(packageName)
-                prefs.edit().putStringSet("blocked_apps", blockedApps).apply()
+            // Save remaining time for resuming later using persistent storage
+            if (remainingSeconds > 0) {
+                saveRemainingTime(packageName, remainingSeconds)
+                android.util.Log.d(TAG, "Saved remaining time for $packageName: ${remainingSeconds}s")
+                
+                // DON'T add the app back to blocked list - keep it accessible for resume
+            } else {
+                // Timer expired, add back to blocked list
+                val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+                val blockedApps = prefs.getStringSet("blocked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+                if (!blockedApps.contains(packageName)) {
+                    blockedApps.add(packageName)
+                    prefs.edit().putStringSet("blocked_apps", blockedApps).apply()
+                }
+                clearRemainingTime(packageName)
             }
 
             // Clear session data
             val sessionStartKey = "${APP_SESSION_PREFIX}${packageName}_start"
             val sessionDurationKey = "${APP_SESSION_PREFIX}${packageName}_duration"
+            val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
             prefs.edit()
                 .remove(sessionStartKey)
                 .remove(sessionDurationKey)
@@ -803,7 +951,7 @@ class AppLaunchInterceptor : Service() {
             // Show notification about timer stopped
             showTimerStoppedNotification(packageName)
             
-            android.util.Log.d(TAG, "TIMER OFF: $packageName (backgrounded)")
+            android.util.Log.d(TAG, "TIMER OFF: $packageName (backgrounded) - remaining: ${remainingSeconds}s")
             
             return
         }
@@ -831,16 +979,10 @@ class AppLaunchInterceptor : Service() {
         val currentTime = System.currentTimeMillis()
         
         if (earlyCloseTime > 0 && (currentTime - earlyCloseTime) < 5000) {
-            android.util.Log.d(TAG, "Early close detected for $packageName, re-adding to blocked list")
+            android.util.Log.d(TAG, "Early close detected for $packageName, but not re-blocking - allowing resume")
             
-            val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
-            val blockedApps = prefs.getStringSet("blocked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
-            
-            if (!blockedApps.contains(packageName)) {
-                blockedApps.add(packageName)
-                prefs.edit().putStringSet("blocked_apps", blockedApps).apply()
-                android.util.Log.d(TAG, "Re-added $packageName to blocked apps due to early close")
-            }
+            // DON'T re-add to blocked list - let user resume the timer
+            // The remaining time is saved in SharedPreferences by Flutter
             
             earlyClosedApps.remove(packageName)
         }
@@ -881,6 +1023,9 @@ class AppLaunchInterceptor : Service() {
         serviceRestartManager = ServiceRestartManager(this)
         serviceRestartManager.registerRestartReceiver()
 
+        // Set up enhanced service persistence
+        setupServiceRestart()
+
         // Acquire wake lock to prevent service from being killed
         acquireWakeLock()
 
@@ -902,8 +1047,10 @@ class AppLaunchInterceptor : Service() {
             addAction("com.example.detach.TEST_PAUSE_SCREEN")
             addAction("com.example.detach.CLEAR_PAUSE_FLAG")
             addAction("com.example.detach.FLUTTER_APP_KILLED")
+            addAction(RESTART_ACTION)
         }
         registerReceiver(resetBlockReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        registerReceiver(serviceRestartReceiver, IntentFilter(RESTART_ACTION), Context.RECEIVER_NOT_EXPORTED)
 
         // Enhanced startup app detection - capture ALL currently running apps
         detectStartupRunningApps()
@@ -989,61 +1136,53 @@ class AppLaunchInterceptor : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        android.util.Log.d(TAG, "=== AppLaunchInterceptor.onDestroy() called ===")
+        android.util.Log.d(TAG, "Service onDestroy called")
         
         try {
-            unregisterReceiver(resetBlockReceiver)
+            // Release wake lock
+            releaseWakeLock()
+            
+            // Cancel restart alarm
+            restartPendingIntent?.let {
+                alarmManager.cancel(it)
+            }
+            
+            // Unregister receivers
+            try {
+                unregisterReceiver(resetBlockReceiver)
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Error unregistering resetBlockReceiver: ${e.message}")
+            }
+            
+            try {
+                unregisterReceiver(serviceRestartReceiver)
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Error unregistering serviceRestartReceiver: ${e.message}")
+            }
+            
+            // Stop all active timers
+            val activeApps = appSessions.keys.toList()
+            activeApps.forEach { packageName ->
+                val session = appSessions[packageName]
+                if (session != null) {
+                    val currentTime = System.currentTimeMillis()
+                    val elapsedTime = ((currentTime - session.startTime) / 1000).toInt()
+                    val totalDuration = (session.duration / 1000).toInt()
+                    val remainingSeconds = totalDuration - elapsedTime
+                    
+                    if (remainingSeconds > 0) {
+                        saveRemainingTime(packageName, remainingSeconds)
+                        android.util.Log.d(TAG, "Service destroyed, saved remaining time for $packageName: ${remainingSeconds}s")
+                    }
+                }
+            }
+            
+            // Schedule service restart to ensure it continues running
+            setupServiceRestart()
+            
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Error unregistering receiver: ${e.message}", e)
+            android.util.Log.e(TAG, "Error in onDestroy: ${e.message}", e)
         }
-        
-        // Stop all active timers and re-block the apps
-        val activeApps = appSessions.keys.toList()
-        android.util.Log.d(TAG, "Service being destroyed, stopping timers for: $activeApps")
-        
-        activeApps.forEach { packageName ->
-            // Stop the timer
-            timerRunnables[packageName]?.let { runnable ->
-                handler.removeCallbacks(runnable)
-            }
-            
-            // Re-block the app
-            val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
-            val blockedApps = prefs.getStringSet("blocked_apps", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
-            if (!blockedApps.contains(packageName)) {
-                blockedApps.add(packageName)
-                prefs.edit().putStringSet("blocked_apps", blockedApps).apply()
-                android.util.Log.d(TAG, "TIMER OFF: $packageName (service destroyed)")
-            }
-            
-            // Clear session data
-            val sessionStartKey = "${APP_SESSION_PREFIX}${packageName}_start"
-            val sessionDurationKey = "${APP_SESSION_PREFIX}${packageName}_duration"
-            prefs.edit()
-                .remove(sessionStartKey)
-                .remove(sessionDurationKey)
-                .apply()
-        }
-        
-        // Clear all timers and sessions
-        timerRunnables.clear()
-        appSessions.clear()
-        
-        // Release wake lock
-        releaseWakeLock()
-        
-        // Unregister restart receiver
-        serviceRestartManager.unregisterRestartReceiver()
-        
-        // Schedule service restart if we have blocked apps
-        val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
-        val blockedApps = prefs.getStringSet("blocked_apps", null)
-        if (blockedApps != null && blockedApps.isNotEmpty()) {
-            android.util.Log.d(TAG, "Service being destroyed but blocked apps exist, scheduling restart")
-            serviceRestartManager.scheduleServiceRestart()
-        }
-        
-        android.util.Log.d(TAG, "Service destroyed")
     }
 
     private fun startForegroundService() {

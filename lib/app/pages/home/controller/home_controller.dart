@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -172,13 +174,6 @@ class HomeController extends GetxController with WidgetsBindingObserver {
   Future<void> _loadApps() async {
     try {
       isLoading.value = true;
-
-      List<AppInfo> installedApps = await InstalledApps.getInstalledApps(
-        false,
-        true,
-      );
-
-      // Specific Google apps allow-list (only these apps will be shown)
       final allowedGoogleApps = [
         'com.google.android.apps.youtube.kids', // YouTube Kids
         'com.google.android.apps.youtube.creator', // YouTube Studio
@@ -247,36 +242,14 @@ class HomeController extends GetxController with WidgetsBindingObserver {
         (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
       );
 
-      // Debug logging
-      print('DEBUG: Found ${filteredInstalledApps.length} allowed Google apps:');
-      for (final app in filteredInstalledApps) {
-        print('  - ${app.name} (${app.packageName})');
-      }
 
       allApps.assignAll(filteredInstalledApps);
       filteredApps.assignAll(filteredInstalledApps);
     } catch (e) {
-      print('Error loading apps: $e');
+      log('Error loading apps: $e');
     } finally {
       isLoading.value = false;
     }
-  }
-
-  // Helper method to check if an app has a launchable intent
-  bool _hasLaunchableIntent(AppInfo app) {
-    // Basic heuristics to determine if an app is launchable
-    // Apps without proper names or with system-like names are probably not user-launchable
-    if (app.name.isEmpty ||
-        app.name.toLowerCase().contains('system') ||
-        app.name.toLowerCase().contains('service') ||
-        app.name.toLowerCase().contains('framework') ||
-        app.packageName.contains('.provider') ||
-        app.packageName.contains('.service') ||
-        app.packageName.endsWith('.stub')) {
-      return false;
-    }
-
-    return true;
   }
 
   // Method to manually add/remove packages from exclusion list
