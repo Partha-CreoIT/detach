@@ -6,6 +6,7 @@ import 'package:detach/services/theme_service.dart';
 import 'widgets/info_bottom_sheet.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:detach/app/pages/permission_handler/view/widgets/how_to_use_view.dart';
 
 class HomeView extends GetView<HomeController> {
   const HomeView({super.key});
@@ -38,7 +39,7 @@ class HomeView extends GetView<HomeController> {
         actions: [
           // Information button
           IconButton(
-            onPressed: () => context.showInfoBottomSheet(),
+            onPressed: () => _showHowToUseBottomSheet(context),
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -144,8 +145,7 @@ class HomeView extends GetView<HomeController> {
               child: CustomScrollView(
                 slivers: [
                   // Selected Apps Section - Hide during search
-                  if (controller.selectedApps.isNotEmpty &&
-                      !controller.isSearching) ...[
+                  if (controller.selectedApps.isNotEmpty && !controller.isSearching) ...[
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -319,5 +319,157 @@ class HomeView extends GetView<HomeController> {
         },
       );
     });
+  }
+
+  void _showHowToUseBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Title
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'How to Use Detach',
+                  style: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              // Instructions content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 16),
+                      _buildInstructionItem(
+                        '1',
+                        'Browse and select apps you want to limit from the list below',
+                        Icons.apps,
+                      ),
+                      const SizedBox(height: 20),
+                      _buildInstructionItem(
+                        '2',
+                        'When you try to open a limited app, Detach will intercept it',
+                        Icons.block,
+                      ),
+                      const SizedBox(height: 20),
+                      _buildInstructionItem(
+                        '3',
+                        'See how many times you\'ve attempted to open the app',
+                        Icons.analytics,
+                      ),
+                      const SizedBox(height: 20),
+                      _buildInstructionItem(
+                        '4',
+                        'If you really need to use the app, open it with a timer',
+                        Icons.timer,
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ),
+              // Close button
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      'Got it!',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInstructionItem(String number, String text, IconData icon) {
+    return Builder(
+      builder: (context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: Text(
+                number,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Row(
+              children: [
+                Icon(icon, size: 16, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    text,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

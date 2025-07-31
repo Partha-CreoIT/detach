@@ -107,57 +107,56 @@ class _HowToUseViewState extends State<HowToUseView> with TickerProviderStateMix
                   ),
                   const SizedBox(height: 24),
                   // Instructions
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.lightbulb,
-                                color: Theme.of(context).colorScheme.primary, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              'How to Use:',
-                              style: GoogleFonts.inter(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.primary,
+                  Material(
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: SmoothBorderRadius(cornerRadius: 16 , cornerSmoothing: 1),
+
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.lightbulb,
+                                  color: Theme.of(context).colorScheme.primary, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                'How to Use:',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        _buildInstructionItem(
-                          '1',
-                          'Open any app you want to limit',
-                          Icons.apps,
-                        ),
-                        const SizedBox(height: 8),
-                        _buildInstructionItem(
-                          '2',
-                          'Tap the Detach floating button',
-                          Icons.touch_app,
-                        ),
-                        const SizedBox(height: 8),
-                        _buildInstructionItem(
-                          '3',
-                          'Set your focus timer and start',
-                          Icons.timer,
-                        ),
-                        const SizedBox(height: 8),
-                        _buildInstructionItem(
-                          '4',
-                          'Stay focused until the timer ends',
-                          Icons.psychology,
-                        ),
-                      ],
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _buildInstructionItem(
+                            '1',
+                            'Browse and select apps you want to limit',
+                            Icons.apps,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildInstructionItem(
+                            '2',
+                            'When you try to open a limited app',
+                            Icons.block,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildInstructionItem(
+                            '3',
+                            'Detach will show your attempt count',
+                            Icons.analytics,
+                          ),
+                          const SizedBox(height: 8),
+                          _buildInstructionItem(
+                            '4',
+                            'Open with a timer if you really need it',
+                            Icons.timer,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],

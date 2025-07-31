@@ -72,7 +72,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       _logoController.forward();
     });
 
-    Future.delayed(const Duration(seconds: 3), () {
+    Future.delayed(const Duration(milliseconds: 1500), () {
       _navigateToProfile();
     });
   }

@@ -126,7 +126,7 @@ class StepperIndicator extends GetView<PermissionController> {
           width: 40,
           height: 2,
           color: isCompleted
-              ? Theme.of(context).colorScheme.primary
+              ? Colors.green
               : Theme.of(context).colorScheme.surfaceVariant,
         );
       },
