@@ -178,70 +178,80 @@ class HomeController extends GetxController with WidgetsBindingObserver {
         true,
       );
 
-      // User-facing Google apps allow-list
-      final googleUserApps = [
+      // Specific Google apps allow-list (only these apps will be shown)
+      final allowedGoogleApps = [
+        'com.google.android.apps.youtube.kids', // YouTube Kids
+        'com.google.android.apps.youtube.creator', // YouTube Studio
+        'com.google.android.apps.youtube.music', // YouTube Music
+        'com.google.android.apps.photos', // Google Photos
+        'com.google.android.youtube', // YouTube
+        'com.google.android.apps.docs.editors.sheets', // Google Sheets
+        'com.google.android.apps.docs.editors.docs', // Google Docs
+        'com.google.android.apps.photosgo', // Gallery (Google Photos Go)
+        'com.google.earth', // Google Earth
+        'com.google.android.apps.docs', // Google Drive
+        'com.google.android.apps.nbu.files', // Files by Google
+        'com.google.android.dialer', // Phone by Google
+        'com.google.android.apps.walletnfcrel', // Google Wallet
+        'com.google.android.apps.chromecast.app', // Google Home
+        'com.google.ar.lens', // Google Lens
+        'com.chrome.dev', // Chrome Dev
+        'com.android.chrome', // Google Chrome
+        'com.google.android.apps.dynamite', // Google Chat
+        'com.google.android.apps.maps', // Google Maps
+        'com.google.chromeremotedesktop', // Chrome Remote Desktop
         'com.google.android.gm', // Gmail
-        'com.google.android.youtube',
-        'com.google.android.apps.maps',
-        'com.google.android.apps.photos',
-        'com.google.android.apps.docs',
-        'com.google.android.apps.meet',
-        'com.google.android.apps.calendar',
-        'com.google.android.keep',
-        'com.google.android.apps.tachyon', // Meet/Duo
-        'com.android.chrome',
-        // Add more as needed
-      ];
-
-      // Allow-list for some Android/Samsung apps
-      final allowList = [
-        'com.android.chrome',
-        'com.android.camera',
-        'com.android.calculator2',
-        'com.android.gallery3d',
-        'com.android.dialer',
-        'com.android.contacts',
-        'com.android.mms',
-        'com.android.music',
-        'com.android.calendar',
-        // Add more as needed
+        'com.google.android.youtube.tv', // YouTube for Android TV
+        'com.google.android.apps.giant', // Google Analytics
+        'com.google.android.GoogleCamera', // Pixel Camera
+        'com.google.android.youtube.tvmusic', // YouTube Music for TV
+        'com.google.android.gm.lite', // Gmail Go
+        'com.google.android.apps.youtube.music.pwa', // YouTube Music for Chromebook
+        'com.google.android.apps.automotive.youtube', // YouTube Automotive
+        'com.google.android.aicore', // Android AICore
       ];
 
       List<AppInfo> filteredInstalledApps = [];
-      for (AppInfo app in installedApps) {
+
+      // Step 1: Get only installed apps (non-system)
+      List<AppInfo> userInstalledApps = await InstalledApps.getInstalledApps(
+        true, // includeSystemApps = false
+        true, // includeAppIcons = true
+      );
+
+      // Step 2: Get system apps separately
+      List<AppInfo> systemApps = await InstalledApps.getInstalledApps(
+        false,
+        true, // includeAppIcons = true
+      );
+
+      // Step 3: Add all user-installed apps (excluding Detach app)
+      for (AppInfo app in userInstalledApps) {
         if (app.packageName == 'com.detach.app') continue;
+        filteredInstalledApps.add(app);
+      }
 
-        // Show only user-facing Google apps and allow-list
-        if (googleUserApps.contains(app.packageName) || allowList.contains(app.packageName)) {
-          filteredInstalledApps.add(app);
-          continue;
-        }
-
-        // Exclude all system/service packages
-        if (app.packageName.startsWith('com.android.') ||
-            app.packageName == 'android' ||
-            app.packageName.startsWith('com.ondevicepersonalization') ||
-            app.packageName.startsWith('com.google.android.') ||
-            app.packageName.startsWith('com.google.android.apps.')) {
-          continue;
-        }
-
-        // Exclude Samsung/sec unless in allow-list
-        if (app.packageName.startsWith('com.samsung.') || app.packageName.startsWith('com.sec.')) {
-          if (allowList.contains(app.packageName)) {
+      // Step 4: Check system apps against our Google allowlist
+      for (AppInfo app in systemApps) {
+        if (allowedGoogleApps.contains(app.packageName)) {
+          // Only add if not already in the list (avoid duplicates)
+          if (!filteredInstalledApps
+              .any((existingApp) => existingApp.packageName == app.packageName)) {
             filteredInstalledApps.add(app);
           }
-          continue;
         }
-
-        // Otherwise, include user apps
-        filteredInstalledApps.add(app);
       }
 
       // Sort apps alphabetically
       filteredInstalledApps.sort(
         (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
       );
+
+      // Debug logging
+      print('DEBUG: Found ${filteredInstalledApps.length} allowed Google apps:');
+      for (final app in filteredInstalledApps) {
+        print('  - ${app.name} (${app.packageName})');
+      }
 
       allApps.assignAll(filteredInstalledApps);
       filteredApps.assignAll(filteredInstalledApps);
