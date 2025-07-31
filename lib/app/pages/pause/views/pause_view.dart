@@ -166,14 +166,14 @@ class PauseView extends GetView<PauseController> {
                                       fontWeight: FontWeight.w500,
                                     ),
                                   )),
-                              const SizedBox(height: 32),
+                              const SizedBox(height: 44),
                             ],
                           ),
                         )
                       : const Align(
                           alignment: Alignment.bottomCenter,
                           child: Padding(
-                            padding: EdgeInsets.only(bottom: 24.0),
+                            padding: EdgeInsets.only(bottom: 52.0),
                             // Optional padding from bottom
                             child: Row(
                               mainAxisSize: MainAxisSize.min,

@@ -204,6 +204,7 @@ class HomeController extends GetxController with WidgetsBindingObserver {
         'com.google.android.apps.youtube.music.pwa', // YouTube Music for Chromebook
         'com.google.android.apps.automotive.youtube', // YouTube Automotive
         'com.google.android.aicore', // Android AICore
+        'com.facebook.katana'
       ];
 
       List<AppInfo> filteredInstalledApps = [];

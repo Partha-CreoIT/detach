@@ -49,6 +49,7 @@ class AppLaunchInterceptor : Service() {
     private val pauseLaunchCooldownMillis = 2000L // Reduced cooldown
     private val lastPauseLaunchTime = mutableMapOf<String, Long>()
     private val lastBackgroundedTime = mutableMapOf<String, Long>()
+    private val heldApps = mutableMapOf<String, Long>() // Track apps being held instead of killed
     private val backgroundCooldownMillis = 1000L
 
     // Timer management for app sessions
@@ -181,6 +182,11 @@ class AppLaunchInterceptor : Service() {
                         
                         // Clear any pending launches for this app
                         pendingAppLaunches.remove(packageName)
+                        
+                        // Release held app if it's Facebook
+                        if (packageName == "com.facebook.katana" && heldApps.containsKey(packageName)) {
+                            releaseHeldApp(packageName)
+                        }
                     }
                 }
                 "com.example.detach.FLUTTER_APP_KILLED" -> {
@@ -627,6 +633,64 @@ class AppLaunchInterceptor : Service() {
         }
     }
 
+    private fun holdAppProcess(packageName: String) {
+        try {
+            android.util.Log.d(TAG, "Holding app process: $packageName")
+            
+            // Method 1: Send the app to background using HOME intent
+            val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            startActivity(homeIntent)
+            
+            // Method 2: Try to suspend the process (doesn't kill, just pauses)
+            try {
+                val process = Runtime.getRuntime().exec(arrayOf("am", "set-inactive", packageName, "true"))
+                process.waitFor()
+                android.util.Log.d(TAG, "App process held: $packageName")
+            } catch (e: Exception) {
+                android.util.Log.d(TAG, "Could not hold process using set-inactive: ${e.message}")
+            }
+            
+            // Method 3: Try to stop the app activity without killing the process
+            try {
+                val process = Runtime.getRuntime().exec(arrayOf("am", "stop-app", packageName))
+                process.waitFor()
+                android.util.Log.d(TAG, "App activity stopped: $packageName")
+            } catch (e: Exception) {
+                android.util.Log.d(TAG, "Could not stop app activity: ${e.message}")
+            }
+            
+            // Keep a reference that this app is being held
+            heldApps[packageName] = System.currentTimeMillis()
+            
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error holding app process: ${e.message}", e)
+        }
+    }
+    
+    private fun releaseHeldApp(packageName: String) {
+        try {
+            android.util.Log.d(TAG, "Releasing held app: $packageName")
+            
+            // Re-activate the app if it was set as inactive
+            try {
+                val process = Runtime.getRuntime().exec(arrayOf("am", "set-inactive", packageName, "false"))
+                process.waitFor()
+                android.util.Log.d(TAG, "App process released: $packageName")
+            } catch (e: Exception) {
+                android.util.Log.d(TAG, "Could not release process using set-inactive: ${e.message}")
+            }
+            
+            // Remove from held apps
+            heldApps.remove(packageName)
+            
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error releasing held app: ${e.message}", e)
+        }
+    }
+
     private fun forceStopApp(packageName: String) {
         try {
             android.util.Log.d(TAG, "Force stopping app: $packageName")
@@ -730,6 +794,19 @@ class AppLaunchInterceptor : Service() {
             
             if (foregroundApp != null && foregroundApp != lastForegroundApp) {
                 android.util.Log.d(TAG, "Foreground app changed: $lastForegroundApp -> $foregroundApp")
+                
+                // Special early interception for Facebook
+                if (foregroundApp == "com.facebook.katana") {
+                    val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+                    val blockedApps = prefs.getStringSet("blocked_apps", null)
+                    if (blockedApps != null && blockedApps.contains(foregroundApp)) {
+                        android.util.Log.d(TAG, "Facebook detected early - preventing launch")
+                        // Skip normal processing and go directly to blocked app handling
+                        lastForegroundApp = foregroundApp
+                        handleAppForegrounded(foregroundApp)
+                        return
+                    }
+                }
 
                 // If the previous foreground app had an active session, save remaining time instead of re-blocking
                 if (lastForegroundApp != null && appSessions.containsKey(lastForegroundApp)) {
@@ -784,6 +861,37 @@ class AppLaunchInterceptor : Service() {
         // Skip if this is Detach app itself
         if (packageName == "com.detach.app") {
             return
+        }
+        
+        // Special handling for Facebook - check if it's blocked FIRST
+        if (packageName == "com.facebook.katana") {
+            val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+            val blockedApps = prefs.getStringSet("blocked_apps", null)
+            if (blockedApps != null && blockedApps.contains(packageName)) {
+                android.util.Log.d(TAG, "Facebook is blocked - holding its process and showing pause screen")
+                
+                // Hold Facebook's process instead of killing it
+                holdAppProcess(packageName)
+                
+                // Then show pause screen immediately
+                handler.post {
+                    val pauseIntent = Intent(this, PauseActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK or 
+                                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_NO_ANIMATION
+                        putExtra("blocked_app_package", packageName)
+                        putExtra("show_lock", true)
+                        putExtra("timer_expired", false)
+                        putExtra("timer_state", "normal")
+                        putExtra("immediate_block", true)
+                        putExtra("overlay_mode", true)
+                        putExtra("hold_process", true) // Indicate we're holding the process
+                    }
+                    startActivity(pauseIntent)
+                    currentlyPausedApp = packageName
+                    lastPauseLaunchTime[packageName] = System.currentTimeMillis()
+                }
+                return
+            }
         }
         
         // Skip if this app has an active session
