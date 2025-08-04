@@ -22,6 +22,9 @@ class HomeController extends GetxController with WidgetsBindingObserver {
   final RxList<AppInfo> filteredApps = <AppInfo>[].obs;
   final RxBool isLoading = true.obs;
 
+  // Temporarily unlocked apps (via timer)
+  final RxList<String> temporarilyUnlockedApps = <String>[].obs;
+
   // Search query
   final RxString searchQuery = ''.obs;
 
@@ -154,10 +157,39 @@ class HomeController extends GetxController with WidgetsBindingObserver {
     } catch (e) {
       selectedAppPackages.assignAll(blockedApps);
     }
+
+    // Load temporarily unlocked apps
+    await _loadTemporarilyUnlockedApps();
+
     await _loadApps();
 
     // Add a small delay to ensure allApps is fully populated
     await Future.delayed(const Duration(milliseconds: 100));
+  }
+
+  Future<void> _loadTemporarilyUnlockedApps() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getKeys();
+      final tempUnlockedApps = <String>[];
+
+      for (final key in keys) {
+        if (key.startsWith('timer_started_') && prefs.getBool(key) == true) {
+          final packageName = key.replaceFirst('timer_started_', '');
+          tempUnlockedApps.add(packageName);
+        }
+      }
+
+      temporarilyUnlockedApps.assignAll(tempUnlockedApps);
+      print(
+          'DEBUG: Loaded ${tempUnlockedApps.length} temporarily unlocked apps: $tempUnlockedApps');
+    } catch (e) {
+      print('DEBUG: Error loading temporarily unlocked apps: $e');
+    }
+  }
+
+  bool isAppTemporarilyUnlocked(String packageName) {
+    return temporarilyUnlockedApps.contains(packageName);
   }
 
   Future<void> _startBlockerServiceIfNeeded() async {
@@ -242,7 +274,6 @@ class HomeController extends GetxController with WidgetsBindingObserver {
       filteredInstalledApps.sort(
         (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
       );
-
 
       allApps.assignAll(filteredInstalledApps);
       filteredApps.assignAll(filteredInstalledApps);
@@ -477,6 +508,9 @@ class HomeController extends GetxController with WidgetsBindingObserver {
       allApps.refresh();
       filteredApps.refresh();
     }
+
+    // Also refresh temporarily unlocked apps
+    await _loadTemporarilyUnlockedApps();
   }
 
   bool _areListsEqual(List<String> list1, List<String> list2) {

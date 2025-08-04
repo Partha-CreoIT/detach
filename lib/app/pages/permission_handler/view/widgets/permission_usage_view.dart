@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:detach/app/pages/permission_handler/controller/permission_controller.dart';
 import 'package:figma_squircle/figma_squircle.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lottie/lottie.dart';
 
 class PermissionUsageView extends GetView<PermissionController> {
   const PermissionUsageView({super.key});
@@ -50,37 +51,12 @@ class PermissionUsageView extends GetView<PermissionController> {
                 ),
               ),
               const SizedBox(height: 16),
-              // Instructions
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '📋 Instructions:',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '1. Tap the button below\n'
-                      '2. Find and tap on "Detach" in the list\n'
-                      '3. Toggle "Permit usage access"\n'
-                      '4. Return to the app',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: Colors.blue,
-                      ),
-                    ),
-                  ],
+              Center(
+                child: Lottie.asset(
+                  'assets/app_usage.json',
+                  width: 200,
+                  height: 200,
+                  fit: BoxFit.contain,
                 ),
               ),
             ],

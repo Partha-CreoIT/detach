@@ -299,10 +299,36 @@ class HomeView extends GetView<HomeController> {
       final isSelected = controller.selectedAppPackages.contains(
         app.packageName,
       );
+      final isTemporarilyUnlocked = controller.isAppTemporarilyUnlocked(app.packageName);
+
       return ListTile(
-        leading: app.icon != null
-            ? Image.memory(app.icon!, width: 40, height: 40)
-            : const Icon(Icons.apps, size: 40),
+        leading: Stack(
+          children: [
+            app.icon != null
+                ? Image.memory(app.icon!, width: 40, height: 40)
+                : const Icon(Icons.apps, size: 40),
+            // Orange indicator for temporarily unlocked apps
+            if (isSelected && isTemporarilyUnlocked)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Colors.orange,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1),
+                  ),
+                  child: const Icon(
+                    Icons.access_time,
+                    size: 8,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+          ],
+        ),
         title: Padding(
           padding: const EdgeInsets.symmetric(vertical: 16.0),
           child: Text(app.name),
@@ -484,7 +510,7 @@ class HomeView extends GetView<HomeController> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only( top: 4.0),
+            padding: const EdgeInsets.only(top: 4.0),
             child: Container(
               width: 24,
               height: 24,
