@@ -106,6 +106,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
 
       blockedApps.remove(lockedPackageName);
       await prefs.setStringList("blocked_apps", blockedApps);
+      await AppCountService.incrementAppCount(lockedPackageName!);
 
       // Reset the app block to prevent immediate re-blocking
       try {
@@ -182,8 +183,6 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
       } catch (e) {
         print('Error updating database for manual block: $e');
       }
-
-      await AppCountService.incrementAppCount(lockedPackageName!);
       await PlatformService.permanentlyBlockApp(lockedPackageName!);
       // Reset the pause flag since the user is taking action
       try {
@@ -213,8 +212,6 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
               sessionDurationSeconds: sessionDurationSeconds,
               isTimerExpired: false,
             );
-            print(
-                'DEBUG: Updated database for manual close - $lockedPackageName, duration: ${sessionDurationSeconds}s');
           } else {
             print('DEBUG: Skipping database update for manual close - timer already expired');
           }
