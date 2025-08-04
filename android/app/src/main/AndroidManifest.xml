@@ -30,7 +30,7 @@
         <category android:name="android.intent.category.LAUNCHER"/>
       </intent-filter>
     </activity>
-    <activity android:name=".PauseActivity" android:theme="@style/LaunchTheme" android:exported="false" android:launchMode="singleTask" android:excludeFromRecents="true" android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode" android:hardwareAccelerated="true" android:windowSoftInputMode="adjustResize">
+    <activity android:name=".PauseActivity" android:theme="@style/OverlayTheme" android:exported="false" android:launchMode="singleTop" android:excludeFromRecents="true" android:taskAffinity="" android:noHistory="true" android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode" android:hardwareAccelerated="true" android:windowSoftInputMode="adjustResize">
       <!-- Specifies an Android theme to apply to this Activity as soon as
                  the Android process has started. This theme is visible to the user
                  while the Flutter UI initializes. After that, this theme continues
@@ -45,6 +45,8 @@
         android:exported="false"
         android:foregroundServiceType="specialUse"
         android:stopWithTask="false"/>
+    
+    <!-- AppOverlayInterceptor Service removed - using immediate blocking instead -->
     
     <!-- BootReceiver - Restarts service after device reboot -->
     <receiver 

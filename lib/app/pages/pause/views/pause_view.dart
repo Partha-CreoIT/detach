@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:figma_squircle/figma_squircle.dart';
 import '../controllers/pause_controller.dart';
@@ -39,23 +40,6 @@ class PauseView extends GetView<PauseController> {
                   ),
             child: Stack(
               children: [
-                // Message Text
-                Obx(
-                  () => !controller.showButtons.value
-                      ? Center(
-                          child: Text(
-                            "It's time to take a deep\nbreath...",
-                            style: GoogleFonts.inter(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                // Animated Container
                 AnimatedBuilder(
                   animation: controller.waterAnimation,
                   builder: (context, child) {
@@ -77,8 +61,8 @@ class PauseView extends GetView<PauseController> {
                             begin: Alignment.bottomLeft,
                             end: Alignment.topRight,
                             colors: [
-                              Color(0xFF6B75F2),
-                              Color(0xFF8B5CF6),
+                              Color(0xFF652590),
+                              Color(0xFF046FB8),
                             ],
                             stops: [0.0, 1.0],
                           ),
@@ -86,6 +70,21 @@ class PauseView extends GetView<PauseController> {
                       ),
                     );
                   },
+                ),
+                Obx(
+                  () => !controller.showButtons.value
+                      ? Center(
+                          child: Text(
+                            "It's time to take a deep\nbreath...",
+                            style: GoogleFonts.inter(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      : const SizedBox.shrink(),
                 ),
                 // Buttons and Counter
                 Obx(
@@ -167,11 +166,23 @@ class PauseView extends GetView<PauseController> {
                                       fontWeight: FontWeight.w500,
                                     ),
                                   )),
-                              const SizedBox(height: 32),
+                              const SizedBox(height: 44),
                             ],
                           ),
                         )
-                      : const SizedBox.shrink(),
+                      : const Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Padding(
+                            padding: EdgeInsets.only(bottom: 52.0),
+                            // Optional padding from bottom
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text("Powered By Detach" , style: TextStyle(fontSize: 14 , fontWeight: FontWeight.w900),),
+                              ],
+                            ),
+                          ),
+                        ),
                 ),
                 // Timer is now handled by Android service, so no need to display countdown here
               ],

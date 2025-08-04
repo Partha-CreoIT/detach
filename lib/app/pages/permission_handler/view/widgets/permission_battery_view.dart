@@ -50,13 +50,12 @@ class PermissionBatteryView extends GetView<PermissionController> {
                   fontSize: 16,
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
-                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
             ],
           ),
           const SizedBox(height: 24),
-          // Button
+          // Buttons
           SizedBox(
             width: double.maxFinite,
             child: ElevatedButton.icon(
@@ -76,7 +75,7 @@ class PermissionBatteryView extends GetView<PermissionController> {
               style: FilledButton.styleFrom(
                 shape: const SmoothRectangleBorder(
                   borderRadius: SmoothBorderRadius.all(
-                    SmoothRadius(cornerRadius: 8, cornerSmoothing: 1),
+                    SmoothRadius(cornerRadius: 16, cornerSmoothing: 1),
                   ),
                 ),
                 padding: const EdgeInsets.symmetric(vertical: 16),

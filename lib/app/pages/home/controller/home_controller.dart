@@ -1,9 +1,12 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:detach/services/analytics_service.dart';
 import 'package:detach/services/platform_service.dart';
 import 'package:detach/services/permission_service.dart';
+import 'package:detach/services/database_service.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:detach/app/routes/app_routes.dart';
@@ -12,11 +15,15 @@ import 'package:figma_squircle/figma_squircle.dart';
 class HomeController extends GetxController with WidgetsBindingObserver {
   final RxInt limitedAppsCount = 0.obs;
   final PermissionService _permissionService = PermissionService();
+  final DatabaseService _databaseService = DatabaseService();
   // App list functionality
   final RxList<AppInfo> allApps = <AppInfo>[].obs;
   final RxList<String> selectedAppPackages = <String>[].obs;
   final RxList<AppInfo> filteredApps = <AppInfo>[].obs;
   final RxBool isLoading = true.obs;
+
+  // Temporarily unlocked apps (via timer)
+  final RxList<String> temporarilyUnlockedApps = <String>[].obs;
 
   // Search query
   final RxString searchQuery = ''.obs;
@@ -150,10 +157,39 @@ class HomeController extends GetxController with WidgetsBindingObserver {
     } catch (e) {
       selectedAppPackages.assignAll(blockedApps);
     }
+
+    // Load temporarily unlocked apps
+    await _loadTemporarilyUnlockedApps();
+
     await _loadApps();
 
     // Add a small delay to ensure allApps is fully populated
     await Future.delayed(const Duration(milliseconds: 100));
+  }
+
+  Future<void> _loadTemporarilyUnlockedApps() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getKeys();
+      final tempUnlockedApps = <String>[];
+
+      for (final key in keys) {
+        if (key.startsWith('timer_started_') && prefs.getBool(key) == true) {
+          final packageName = key.replaceFirst('timer_started_', '');
+          tempUnlockedApps.add(packageName);
+        }
+      }
+
+      temporarilyUnlockedApps.assignAll(tempUnlockedApps);
+      print(
+          'DEBUG: Loaded ${tempUnlockedApps.length} temporarily unlocked apps: $tempUnlockedApps');
+    } catch (e) {
+      print('DEBUG: Error loading temporarily unlocked apps: $e');
+    }
+  }
+
+  bool isAppTemporarilyUnlocked(String packageName) {
+    return temporarilyUnlockedApps.contains(packageName);
   }
 
   Future<void> _startBlockerServiceIfNeeded() async {
@@ -170,72 +206,68 @@ class HomeController extends GetxController with WidgetsBindingObserver {
   Future<void> _loadApps() async {
     try {
       isLoading.value = true;
-
-      List<AppInfo> installedApps = await InstalledApps.getInstalledApps(
-        false,
-        true,
-      );
-
-      // User-facing Google apps allow-list
-      final googleUserApps = [
+      final allowedGoogleApps = [
+        'com.google.android.apps.youtube.kids', // YouTube Kids
+        'com.google.android.apps.youtube.creator', // YouTube Studio
+        'com.google.android.apps.youtube.music', // YouTube Music
+        'com.google.android.apps.photos', // Google Photos
+        'com.google.android.youtube', // YouTube
+        'com.google.android.apps.docs.editors.sheets', // Google Sheets
+        'com.google.android.apps.docs.editors.docs', // Google Docs
+        'com.google.android.apps.photosgo', // Gallery (Google Photos Go)
+        'com.google.earth', // Google Earth
+        'com.google.android.apps.docs', // Google Drive
+        'com.google.android.apps.nbu.files', // Files by Google
+        'com.google.android.dialer', // Phone by Google
+        'com.google.android.apps.walletnfcrel', // Google Wallet
+        'com.google.android.apps.chromecast.app', // Google Home
+        'com.google.ar.lens', // Google Lens
+        'com.chrome.dev', // Chrome Dev
+        'com.android.chrome', // Google Chrome
+        'com.google.android.apps.dynamite', // Google Chat
+        'com.google.android.apps.maps', // Google Maps
+        'com.google.chromeremotedesktop', // Chrome Remote Desktop
         'com.google.android.gm', // Gmail
-        'com.google.android.youtube',
-        'com.google.android.apps.maps',
-        'com.google.android.apps.photos',
-        'com.google.android.apps.docs',
-        'com.google.android.apps.meet',
-        'com.google.android.apps.calendar',
-        'com.google.android.keep',
-        'com.google.android.apps.tachyon', // Meet/Duo
-        'com.android.chrome',
-        // Add more as needed
-      ];
-
-      // Allow-list for some Android/Samsung apps
-      final allowList = [
-        'com.android.chrome',
-        'com.android.camera',
-        'com.android.calculator2',
-        'com.android.gallery3d',
-        'com.android.dialer',
-        'com.android.contacts',
-        'com.android.mms',
-        'com.android.music',
-        'com.android.calendar',
-        // Add more as needed
+        'com.google.android.youtube.tv', // YouTube for Android TV
+        'com.google.android.apps.giant', // Google Analytics
+        'com.google.android.GoogleCamera', // Pixel Camera
+        'com.google.android.youtube.tvmusic', // YouTube Music for TV
+        'com.google.android.gm.lite', // Gmail Go
+        'com.google.android.apps.youtube.music.pwa', // YouTube Music for Chromebook
+        'com.google.android.apps.automotive.youtube', // YouTube Automotive
+        'com.google.android.aicore', // Android AICore
+        'com.facebook.katana'
       ];
 
       List<AppInfo> filteredInstalledApps = [];
-      for (AppInfo app in installedApps) {
+
+      // Step 1: Get only installed apps (non-system)
+      List<AppInfo> userInstalledApps = await InstalledApps.getInstalledApps(
+        true, // includeSystemApps = false
+        true, // includeAppIcons = true
+      );
+
+      // Step 2: Get system apps separately
+      List<AppInfo> systemApps = await InstalledApps.getInstalledApps(
+        false,
+        true, // includeAppIcons = true
+      );
+
+      // Step 3: Add all user-installed apps (excluding Detach app)
+      for (AppInfo app in userInstalledApps) {
         if (app.packageName == 'com.detach.app') continue;
+        filteredInstalledApps.add(app);
+      }
 
-        // Show only user-facing Google apps and allow-list
-        if (googleUserApps.contains(app.packageName) ||
-            allowList.contains(app.packageName)) {
-          filteredInstalledApps.add(app);
-          continue;
-        }
-
-        // Exclude all system/service packages
-        if (app.packageName.startsWith('com.android.') ||
-            app.packageName == 'android' ||
-            app.packageName.startsWith('com.ondevicepersonalization') ||
-            app.packageName.startsWith('com.google.android.') ||
-            app.packageName.startsWith('com.google.android.apps.')) {
-          continue;
-        }
-
-        // Exclude Samsung/sec unless in allow-list
-        if (app.packageName.startsWith('com.samsung.') ||
-            app.packageName.startsWith('com.sec.')) {
-          if (allowList.contains(app.packageName)) {
+      // Step 4: Check system apps against our Google allowlist
+      for (AppInfo app in systemApps) {
+        if (allowedGoogleApps.contains(app.packageName)) {
+          // Only add if not already in the list (avoid duplicates)
+          if (!filteredInstalledApps
+              .any((existingApp) => existingApp.packageName == app.packageName)) {
             filteredInstalledApps.add(app);
           }
-          continue;
         }
-
-        // Otherwise, include user apps
-        filteredInstalledApps.add(app);
       }
 
       // Sort apps alphabetically
@@ -246,27 +278,10 @@ class HomeController extends GetxController with WidgetsBindingObserver {
       allApps.assignAll(filteredInstalledApps);
       filteredApps.assignAll(filteredInstalledApps);
     } catch (e) {
-      print('Error loading apps: $e');
+      log('Error loading apps: $e');
     } finally {
       isLoading.value = false;
     }
-  }
-
-  // Helper method to check if an app has a launchable intent
-  bool _hasLaunchableIntent(AppInfo app) {
-    // Basic heuristics to determine if an app is launchable
-    // Apps without proper names or with system-like names are probably not user-launchable
-    if (app.name.isEmpty ||
-        app.name.toLowerCase().contains('system') ||
-        app.name.toLowerCase().contains('service') ||
-        app.name.toLowerCase().contains('framework') ||
-        app.packageName.contains('.provider') ||
-        app.packageName.contains('.service') ||
-        app.packageName.endsWith('.stub')) {
-      return false;
-    }
-
-    return true;
   }
 
   // Method to manually add/remove packages from exclusion list
@@ -308,9 +323,16 @@ class HomeController extends GetxController with WidgetsBindingObserver {
     if (selectedAppPackages.contains(app.packageName)) {
       selectedAppPackages.remove(app.packageName);
       AnalyticsService.to.logAppUnblocked(app.name);
+      // Remove from locked apps table
+      await _databaseService.deleteLockedApp(app.packageName);
     } else {
       selectedAppPackages.add(app.packageName);
       AnalyticsService.to.logAppBlocked(app.name);
+      // Add to locked apps table (no default timings - will be set when user opens app)
+      await _databaseService.upsertLockedApp(
+        packageName: app.packageName,
+        appName: app.name,
+      );
       // Notify native side that app was blocked to prevent immediate pause screen
       PlatformService.notifyAppBlocked(app.packageName);
     }
@@ -486,6 +508,9 @@ class HomeController extends GetxController with WidgetsBindingObserver {
       allApps.refresh();
       filteredApps.refresh();
     }
+
+    // Also refresh temporarily unlocked apps
+    await _loadTemporarilyUnlockedApps();
   }
 
   bool _areListsEqual(List<String> list1, List<String> list2) {
@@ -498,9 +523,7 @@ class HomeController extends GetxController with WidgetsBindingObserver {
 
   // Computed getters for the UI
   List<AppInfo> get selectedApps {
-    return allApps
-        .where((app) => selectedAppPackages.contains(app.packageName))
-        .toList();
+    return allApps.where((app) => selectedAppPackages.contains(app.packageName)).toList();
   }
 
   // Method to refresh apps list (useful for debugging or manual refresh)

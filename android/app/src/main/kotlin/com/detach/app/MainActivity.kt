@@ -10,6 +10,7 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugins.GeneratedPluginRegistrant
+// AppOverlayInterceptor import removed - using immediate blocking
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.detach.app/permissions"
     private val TAG = "MainActivity"
@@ -169,6 +170,42 @@ class MainActivity : FlutterActivity() {
                     }
                     result.success(null)
                 }
+                "resetPauseFlag" -> {
+                    val packageName = call.argument<String>("packageName")
+                    Log.d(TAG, "Resetting pause flag for ${packageName ?: "all apps"}")
+                    
+                    // Send to AppLaunchInterceptor to reset pause flag
+                    val resetIntent = Intent(this, AppLaunchInterceptor::class.java).apply {
+                        action = "com.example.detach.RESET_PAUSE_FLAG"
+                        if (packageName != null) {
+                            putExtra("package_name", packageName)
+                        }
+                    }
+                    startService(resetIntent)
+                    
+                    result.success(true)
+                }
+                "forceShowPauseScreen" -> {
+                    val packageName = call.argument<String>("packageName")
+                    if (packageName != null) {
+                        Log.d(TAG, "Force showing pause screen for $packageName")
+                        
+                        // Force launch pause screen
+                        val pauseIntent = Intent(this, PauseActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            putExtra("blocked_app_package", packageName)
+                            putExtra("show_lock", true)
+                            putExtra("timer_expired", false)
+                            putExtra("timer_state", "normal")
+                            putExtra("overlay_mode", true)
+                        }
+                        startActivity(pauseIntent)
+                        
+                        result.success(true)
+                    } else {
+                        result.error("INVALID_ARG", "Package name is null", null)
+                    }
+                }
                 "isBlockerServiceRunning" -> {
                     val am =
                         getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
@@ -283,9 +320,73 @@ class MainActivity : FlutterActivity() {
                     forceRestartBlockerService()
                     result.success(null)
                 }
+                "testOverlayMode" -> {
+                    val packageName = call.argument<String>("packageName")
+                    if (packageName != null) {
+                        Log.d(TAG, "Testing overlay mode for $packageName")
+                        
+                        // Test the overlay functionality
+                        val overlayIntent = Intent(this, AppOverlayInterceptor::class.java).apply {
+                            action = "com.example.detach.APP_LAUNCHED"
+                            putExtra("package_name", packageName)
+                        }
+                        startService(overlayIntent)
+                        
+                        result.success(true)
+                    } else {
+                        result.error("INVALID_ARG", "Package name is null", null)
+                    }
+                }
+                "minimizeAppToBackground" -> {
+                    Log.d(TAG, "Minimizing app to background")
+                    try {
+                        // Go to home screen
+                        val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                            addCategory(Intent.CATEGORY_HOME)
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                        startActivity(homeIntent)
+                        
+                        // Finish the current activity
+                        finishAndRemoveTask()
+                        
+                        result.success(true)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error minimizing app: ${e.message}", e)
+                        result.error("MINIMIZE_ERROR", "Error minimizing app: ${e.message}", null)
+                    }
+                }
+                "goToHomeAndFinish" -> {
+                    Log.d(TAG, "Going to home and finishing")
+                    try {
+                        // Go to home screen
+                        val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                            addCategory(Intent.CATEGORY_HOME)
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                        startActivity(homeIntent)
+                        
+                        // Finish the current activity
+                        finishAndRemoveTask()
+                        
+                        result.success(true)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error going to home and finishing: ${e.message}", e)
+                        result.error("HOME_FINISH_ERROR", "Error going to home and finishing: ${e.message}", null)
+                    }
+                }
                 "checkServiceHealth" -> {
                     val healthInfo = checkServiceHealth()
                     result.success(healthInfo)
+                }
+                "getCurrentForegroundApp" -> {
+                    try {
+                        val currentApp = getCurrentForegroundApp()
+                        result.success(currentApp)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error getting current foreground app: ${e.message}", e)
+                        result.error("FOREGROUND_APP_ERROR", "Error getting current foreground app: ${e.message}", null)
+                    }
                 }
                 else -> {
                     result.notImplemented()
@@ -315,6 +416,21 @@ class MainActivity : FlutterActivity() {
     private fun isIgnoringBatteryOptimizations(): Boolean {
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         return pm.isIgnoringBatteryOptimizations(packageName)
+    }
+    
+    private fun getCurrentForegroundApp(): String? {
+        return try {
+            val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            val tasks = am.getRunningTasks(1)
+            if (tasks.isNotEmpty()) {
+                tasks[0].topActivity?.packageName
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting current foreground app: ${e.message}", e)
+            null
+        }
     }
     private fun openUsageAccessSettings() {
         // Unfortunately, there's no direct way to grant usage access like battery optimization
@@ -438,8 +554,10 @@ class MainActivity : FlutterActivity() {
             val serviceIntent = Intent(this, AppLaunchInterceptor::class.java)
             startService(serviceIntent)
             Log.d(TAG, "AppLaunchInterceptor service started")
+            
+            // Note: AppOverlayInterceptor removed - using immediate blocking instead
         } catch (e: Exception) {
-            Log.e(TAG, "Error starting AppLaunchInterceptor service: ${e.message}", e)
+            Log.e(TAG, "Error starting services: ${e.message}", e)
         }
     }
 

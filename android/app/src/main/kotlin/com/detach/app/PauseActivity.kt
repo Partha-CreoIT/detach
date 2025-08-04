@@ -48,6 +48,16 @@ class PauseActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // Make this activity transparent overlay like competitor
+        window.setFlags(
+            android.view.WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS,
+            android.view.WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS
+        )
+        window.setFlags(
+            android.view.WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION,
+            android.view.WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION
+        )
+        
         // Disable animations for fresh start
         overridePendingTransition(0, 0)
 
@@ -336,13 +346,23 @@ class PauseActivity : FlutterActivity() {
                 }
 
                 "goToHomeAndFinish" -> {
-                    val homeIntent = Intent(Intent.ACTION_MAIN).apply {
-                        addCategory(Intent.CATEGORY_HOME)
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    try {
+                        Log.d(TAG, "Going to home and finishing from PauseActivity")
+                        // Go to home screen
+                        val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                            addCategory(Intent.CATEGORY_HOME)
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                        startActivity(homeIntent)
+                        
+                        // Finish the current activity
+                        finishAndRemoveTask()
+                        
+                        result.success(true)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error going to home and finishing: ${e.message}", e)
+                        result.error("HOME_FINISH_ERROR", "Error going to home and finishing: ${e.message}", null)
                     }
-                    startActivity(homeIntent)
-                    finishAndRemoveTask()
-                    result.success(null)
                 }
 
                 "launchApp" -> {

@@ -54,14 +54,12 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     _logoScaleAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(
-        CurvedAnimation(parent: _logoController, curve: Curves.elasticOut));
+    ).animate(CurvedAnimation(parent: _logoController, curve: Curves.elasticOut));
 
     _logoRotationAnimation = Tween<double>(
       begin: -0.5,
       end: 0.0,
-    ).animate(
-        CurvedAnimation(parent: _logoController, curve: Curves.easeOutBack));
+    ).animate(CurvedAnimation(parent: _logoController, curve: Curves.easeOutBack));
 
     _logoOpacityAnimation = Tween<double>(
       begin: 0.0,
@@ -74,7 +72,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       _logoController.forward();
     });
 
-    Future.delayed(const Duration(seconds: 3), () {
+    Future.delayed(const Duration(milliseconds: 1500), () {
       _navigateToProfile();
     });
   }
@@ -104,11 +102,10 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     // Log permission status
     if (hasUsage) await AnalyticsService.to.logPermissionGranted('usage_stats');
     if (hasOverlay) await AnalyticsService.to.logPermissionGranted('overlay');
-    if (hasBattery)
-      await AnalyticsService.to.logPermissionGranted('battery_optimization');
+    if (hasBattery) await AnalyticsService.to.logPermissionGranted('battery_optimization');
     if (hasUsage && hasOverlay && hasBattery) {
       await AnalyticsService.to.logFeatureUsage('all_permissions_granted');
-      Get.offAllNamed(AppRoutes.home); // Remove the tab parameter
+      Get.offAllNamed(AppRoutes.mainNavigation); // Navigate to main navigation
     } else {
       await AnalyticsService.to.logFeatureUsage('permissions_required');
       Get.offAllNamed(AppRoutes.permission);

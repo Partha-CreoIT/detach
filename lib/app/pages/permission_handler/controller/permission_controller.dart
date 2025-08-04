@@ -9,12 +9,19 @@ class PermissionController extends GetxController with WidgetsBindingObserver {
   final PermissionService _permissionService = PermissionService();
   final PageController pageController = PageController();
   final RxInt currentPage = 0.obs;
+
+  // Reactive variables for permission states
+  final RxBool hasUsagePermission = false.obs;
+  final RxBool hasOverlayPermission = false.obs;
+  final RxBool hasBatteryPermission = false.obs;
+
   bool _hasCheckedPermissions = false;
 
   @override
   void onInit() {
     super.onInit();
     WidgetsBinding.instance.addObserver(this);
+    checkAndUpdatePermissions();
     _checkPermissionsAndNavigate();
     _logScreenView();
   }
@@ -31,7 +38,11 @@ class PermissionController extends GetxController with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       // Always check permissions when app is resumed
       _hasCheckedPermissions = false;
-      _checkPermissionsAndNavigate();
+      // Add a small delay to ensure settings have been applied
+      Future.delayed(const Duration(milliseconds: 500), () {
+        checkAndUpdatePermissions();
+        _checkPermissionsAndNavigate();
+      });
     }
   }
 
@@ -46,28 +57,26 @@ class PermissionController extends GetxController with WidgetsBindingObserver {
     // Mark that we've checked permissions
     _hasCheckedPermissions = true;
 
-    // Check all permissions
-    final hasUsage = await _permissionService.hasUsagePermission();
-    final hasOverlay = await _permissionService.hasOverlayPermission();
-    final hasBattery = await _permissionService.hasBatteryOptimizationIgnored();
+    // Check all permissions and update reactive variables
+    await checkAndUpdatePermissions();
 
-    // If all permissions are granted, navigate to home
-    if (hasUsage && hasOverlay && hasBattery) {
+    // If all permissions are granted, navigate to how to use page
+    if (hasUsagePermission.value && hasOverlayPermission.value && hasBatteryPermission.value) {
       await AnalyticsService.to.logFeatureUsage('all_permissions_granted');
-      Get.offAllNamed(AppRoutes.home);
+      _navigateToPage(3); // Navigate to "How to Use" page
       return;
     }
 
     // Otherwise, navigate to the first missing permission
-    if (!hasUsage) {
+    if (!hasUsagePermission.value) {
       _navigateToPage(0);
       return;
     }
-    if (!hasOverlay) {
+    if (!hasOverlayPermission.value) {
       _navigateToPage(1);
       return;
     }
-    if (!hasBattery) {
+    if (!hasBatteryPermission.value) {
       _navigateToPage(2);
       return;
     }
@@ -76,6 +85,39 @@ class PermissionController extends GetxController with WidgetsBindingObserver {
   void _navigateToPage(int page) {
     currentPage.value = page;
     pageController.jumpToPage(page);
+  }
+
+  // Method to move to next page only if current permission is granted
+  Future<void> moveToNextPage() async {
+    // First check and update all permissions
+    await checkAndUpdatePermissions();
+
+    // Check current permission status
+    bool canProceed = false;
+
+    switch (currentPage.value) {
+      case 0:
+        canProceed = hasUsagePermission.value;
+        break;
+      case 1:
+        canProceed = hasOverlayPermission.value;
+        break;
+      case 2:
+        canProceed = hasBatteryPermission.value;
+        break;
+      case 3:
+        // On the last page, navigate to main navigation
+        Get.offAllNamed(AppRoutes.mainNavigation);
+        return;
+    }
+
+    if (canProceed && currentPage.value < 3) {
+      currentPage.value++;
+      pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   Future<void> openUsageSettings() async {
@@ -102,6 +144,48 @@ class PermissionController extends GetxController with WidgetsBindingObserver {
   /// Reset permission check flag to allow re-checking when user returns from settings
   void resetPermissionCheck() {
     _hasCheckedPermissions = false;
+  }
+
+  /// Check and update permission states
+  Future<void> checkAndUpdatePermissions() async {
+    final hasUsage = await _permissionService.hasUsagePermission();
+    final hasOverlay = await _permissionService.hasOverlayPermission();
+    final hasBattery = await _permissionService.hasBatteryOptimizationIgnored();
+
+    hasUsagePermission.value = hasUsage;
+    hasOverlayPermission.value = hasOverlay;
+    hasBatteryPermission.value = hasBattery;
+
+    // Check if all permissions are granted and navigate accordingly
+    _checkAndNavigateAfterPermissions();
+  }
+
+  /// Check if all permissions are granted and navigate to appropriate page
+  void _checkAndNavigateAfterPermissions() {
+    if (hasUsagePermission.value && hasOverlayPermission.value && hasBatteryPermission.value) {
+      // All permissions granted, navigate to "How to Use" page
+      if (currentPage.value < 3) {
+        currentPage.value = 3;
+        pageController.jumpToPage(3);
+      }
+    } else {
+      // Navigate to first missing permission
+      if (!hasUsagePermission.value && currentPage.value != 0) {
+        currentPage.value = 0;
+        pageController.jumpToPage(0);
+      } else if (hasUsagePermission.value &&
+          !hasOverlayPermission.value &&
+          currentPage.value != 1) {
+        currentPage.value = 1;
+        pageController.jumpToPage(1);
+      } else if (hasUsagePermission.value &&
+          hasOverlayPermission.value &&
+          !hasBatteryPermission.value &&
+          currentPage.value != 2) {
+        currentPage.value = 2;
+        pageController.jumpToPage(2);
+      }
+    }
   }
 
   Future<void> _logScreenView() async {

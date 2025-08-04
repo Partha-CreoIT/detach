@@ -4,8 +4,10 @@ import '../controller/permission_controller.dart';
 import 'widgets/permission_battery_view.dart';
 import 'widgets/permission_overlay_view.dart';
 import 'widgets/permission_usage_view.dart';
+import 'widgets/how_to_use_view.dart';
+import 'widgets/stepper_indicator.dart';
 import 'package:detach/app/routes/app_routes.dart';
-import 'package:detach/services/theme_service.dart';
+
 import 'package:flutter/services.dart';
 
 class PermissionView extends GetView<PermissionController> {
@@ -32,18 +34,26 @@ class PermissionView extends GetView<PermissionController> {
           icon: const Icon(Icons.close),
           onPressed: () async {
             await controller.setBypassPermissions();
-            Get.offAllNamed(AppRoutes.home);
+            Get.offAllNamed(AppRoutes.mainNavigation);
           },
         ),
       ),
       body: SafeArea(
-        child: PageView(
-          controller: controller.pageController,
-          physics: const NeverScrollableScrollPhysics(), // Disable swiping
-          children: const [
-            PermissionUsageView(),
-            PermissionOverlayView(),
-            PermissionBatteryView(),
+        child: Column(
+          children: [
+            const StepperIndicator(),
+            Expanded(
+              child: PageView(
+                controller: controller.pageController,
+                physics: const NeverScrollableScrollPhysics(), // Disable swiping
+                children: const [
+                  PermissionUsageView(),
+                  PermissionOverlayView(),
+                  PermissionBatteryView(),
+                  HowToUseView(),
+                ],
+              ),
+            ),
           ],
         ),
       ),
