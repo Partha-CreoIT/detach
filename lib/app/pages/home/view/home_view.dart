@@ -7,6 +7,7 @@ import 'widgets/info_bottom_sheet.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:detach/app/pages/permission_handler/view/widgets/how_to_use_view.dart';
+import 'package:figma_squircle/figma_squircle.dart';
 
 class HomeView extends GetView<HomeController> {
   const HomeView({super.key});
@@ -16,10 +17,10 @@ class HomeView extends GetView<HomeController> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Overview',
+          'DETACH',
           style: GoogleFonts.inter(
             fontWeight: FontWeight.bold,
-            fontSize: 28,
+            fontSize: 24,
             color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
@@ -308,9 +309,60 @@ class HomeView extends GetView<HomeController> {
         ),
         trailing: Switch(
           value: isSelected,
-          onChanged: (_) {
-            controller.toggleAppSelection(app);
-            controller.saveApps();
+          onChanged: (value) async {
+            if (value == false) {
+              // Show confirmation dialog when turning off (unlocking)
+              final shouldUnlock = await showDialog<bool>(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: Text('Unlock ${app.name}?'),
+                    content: Text(
+                        'Are you sure you really want to distract yourself by unlocking ${app.name}?'),
+                    actions: [
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          shape: SmoothRectangleBorder(
+                            borderRadius: SmoothBorderRadius(
+                              cornerRadius: 8,
+                              cornerSmoothing: 1,
+                            ),
+                          ),
+                        ),
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        child: Text(
+                          'Unlock',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              );
+
+              if (shouldUnlock == true) {
+                controller.toggleAppSelection(app);
+                controller.saveApps();
+              }
+            } else {
+              // Turning on (locking) - proceed normally
+              controller.toggleAppSelection(app);
+              controller.saveApps();
+            }
           },
         ),
         onTap: () {
@@ -327,7 +379,7 @@ class HomeView extends GetView<HomeController> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
+        initialChildSize: 0.6,
         minChildSize: 0.5,
         maxChildSize: 0.95,
         builder: (context, scrollController) => Container(
@@ -370,25 +422,21 @@ class HomeView extends GetView<HomeController> {
                       _buildInstructionItem(
                         '1',
                         'Browse and select apps you want to limit from the list below',
-                        Icons.apps,
                       ),
                       const SizedBox(height: 20),
                       _buildInstructionItem(
                         '2',
                         'When you try to open a limited app, Detach will intercept it',
-                        Icons.block,
                       ),
                       const SizedBox(height: 20),
                       _buildInstructionItem(
                         '3',
                         'See how many times you\'ve attempted to open the app',
-                        Icons.analytics,
                       ),
                       const SizedBox(height: 20),
                       _buildInstructionItem(
                         '4',
                         'If you really need to use the app, open it with a timer',
-                        Icons.timer,
                       ),
                       const SizedBox(height: 20),
                     ],
@@ -405,8 +453,11 @@ class HomeView extends GetView<HomeController> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.primary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                      shape: SmoothRectangleBorder(
+                        borderRadius: SmoothBorderRadius(
+                          cornerRadius: 16,
+                          cornerSmoothing: 1,
+                        ),
                       ),
                     ),
                     child: Text(
@@ -427,25 +478,28 @@ class HomeView extends GetView<HomeController> {
     );
   }
 
-  Widget _buildInstructionItem(String number, String text, IconData icon) {
+  Widget _buildInstructionItem(String number, String text) {
     return Builder(
       builder: (context) => Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Text(
-                number,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+          Padding(
+            padding: const EdgeInsets.only( top: 4.0),
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Text(
+                  number,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
@@ -454,8 +508,6 @@ class HomeView extends GetView<HomeController> {
           Expanded(
             child: Row(
               children: [
-                Icon(icon, size: 16, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     text,

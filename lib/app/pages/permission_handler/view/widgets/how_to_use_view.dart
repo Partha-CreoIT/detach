@@ -108,54 +108,18 @@ class _HowToUseViewState extends State<HowToUseView> with TickerProviderStateMix
                   const SizedBox(height: 24),
                   // Instructions
                   Material(
-                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                    borderRadius: SmoothBorderRadius(cornerRadius: 16 , cornerSmoothing: 1),
-
+                    elevation: 6,
+                    color: Colors.white,
+                    borderRadius: SmoothBorderRadius(cornerRadius: 24, cornerSmoothing: 1),
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.lightbulb,
-                                  color: Theme.of(context).colorScheme.primary, size: 20),
-                              const SizedBox(width: 8),
-                              Text(
-                                'How to Use:',
-                                style: GoogleFonts.inter(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          _buildInstructionItem(
-                            '1',
-                            'Browse and select apps you want to limit',
-                            Icons.apps,
-                          ),
-                          const SizedBox(height: 8),
-                          _buildInstructionItem(
-                            '2',
-                            'When you try to open a limited app',
-                            Icons.block,
-                          ),
-                          const SizedBox(height: 8),
-                          _buildInstructionItem(
-                            '3',
-                            'Detach will show your attempt count',
-                            Icons.analytics,
-                          ),
-                          const SizedBox(height: 8),
-                          _buildInstructionItem(
-                            '4',
-                            'Open with a timer if you really need it',
-                            Icons.timer,
-                          ),
-                        ],
+                      child: Text(
+                        'Browse your apps, lock time-wasters, if really needed open them with a focus timer.',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                       ),
                     ),
                   ),

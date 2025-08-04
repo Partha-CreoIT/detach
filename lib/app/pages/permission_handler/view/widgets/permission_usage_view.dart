@@ -43,8 +43,7 @@ class PermissionUsageView extends GetView<PermissionController> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Detach requires permission to detect which app is currently in use so it can help you focus. '
-                'This permission is only used on your device and never leaves it.',
+                'Detach requires permission to detect which app is currently in use so it can help you focus.',
                 style: GoogleFonts.inter(
                   fontSize: 16,
                   color: Theme.of(context).colorScheme.onSurface,
@@ -98,7 +97,7 @@ class PermissionUsageView extends GetView<PermissionController> {
               style: FilledButton.styleFrom(
                 shape: const SmoothRectangleBorder(
                   borderRadius: SmoothBorderRadius.all(
-                    SmoothRadius(cornerRadius: 8, cornerSmoothing: 1),
+                    SmoothRadius(cornerRadius: 16, cornerSmoothing: 1),
                   ),
                 ),
                 padding: const EdgeInsets.symmetric(vertical: 16),

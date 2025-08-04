@@ -17,19 +17,11 @@ class StepperIndicator extends GetView<PermissionController> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'Step ${controller.currentPage.value + 1} of 4: ',
+                  'Step ${controller.currentPage.value + 1} of 4',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
-                ),
-                Text(
-                  _getStepTitle(controller.currentPage.value),
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -145,21 +137,6 @@ class StepperIndicator extends GetView<PermissionController> {
         return false; // The last step is never "completed" as it's the final page
       default:
         return false;
-    }
-  }
-
-  String _getStepTitle(int step) {
-    switch (step) {
-      case 0:
-        return 'Usage Permission';
-      case 1:
-        return 'Overlay Permission';
-      case 2:
-        return 'Battery Permission';
-      case 3:
-        return 'How to Use';
-      default:
-        return '';
     }
   }
 }

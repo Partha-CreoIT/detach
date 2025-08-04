@@ -43,7 +43,7 @@ class PermissionOverlayView extends GetView<PermissionController> {
               const SizedBox(height: 16),
               Text(
                 'Detach needs permission to draw over other apps in order to display a blocking screen '
-                'when you open a restricted app. Please enable this in settings.',
+                'when you open a restricted app.',
                 style: GoogleFonts.inter(
                   fontSize: 16,
                   color: Theme.of(context).colorScheme.onSurface,
@@ -100,7 +100,7 @@ class PermissionOverlayView extends GetView<PermissionController> {
               style: FilledButton.styleFrom(
                 shape: const SmoothRectangleBorder(
                   borderRadius: SmoothBorderRadius.all(
-                    SmoothRadius(cornerRadius: 8, cornerSmoothing: 1),
+                    SmoothRadius(cornerRadius: 16, cornerSmoothing: 1),
                   ),
                 ),
                 padding: const EdgeInsets.symmetric(vertical: 16),
