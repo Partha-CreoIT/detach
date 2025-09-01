@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+
 import 'package:get/get.dart';
 import 'package:figma_squircle/figma_squircle.dart';
 import '../controllers/pause_controller.dart';
 import 'widgets/timer_view.dart';
-import 'package:detach/services/theme_service.dart';
+
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -53,8 +53,7 @@ class PauseView extends GetView<PauseController> {
                       right: 0,
                       height: screenHeight * controller.waterAnimation.value,
                       child: AnimatedContainer(
-                        duration:
-                            const Duration(seconds: 6), // Slower animation
+                        duration: const Duration(seconds: 6), // Slower animation
                         curve: Curves.easeInOut,
                         decoration: const BoxDecoration(
                           gradient: LinearGradient(
@@ -100,8 +99,7 @@ class PauseView extends GetView<PauseController> {
                                 style: GoogleFonts.inter(
                                   fontSize: 120,
                                   fontWeight: FontWeight.bold,
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface,
+                                  color: Theme.of(context).colorScheme.onSurface,
                                 ),
                               ),
                               const SizedBox(height: 16),
@@ -111,8 +109,7 @@ class PauseView extends GetView<PauseController> {
                                   textAlign: TextAlign.center,
                                   style: GoogleFonts.inter(
                                     fontSize: 18,
-                                    color:
-                                        Theme.of(context).colorScheme.onSurface,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                     height: 1.5,
                                   ),
                                 ),
@@ -130,8 +127,7 @@ class PauseView extends GetView<PauseController> {
                                       ),
                                     ),
                                   ),
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 16),
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
                                 ),
                                 child: Text(
                                   "I don't want to open ${controller.displayAppName}",
@@ -146,8 +142,7 @@ class PauseView extends GetView<PauseController> {
                               TextButton(
                                   onPressed: controller.continueApp,
                                   style: FilledButton.styleFrom(
-                                    minimumSize:
-                                        const Size(double.infinity, 44),
+                                    minimumSize: const Size(double.infinity, 44),
                                     shape: const SmoothRectangleBorder(
                                       borderRadius: SmoothBorderRadius.all(
                                         SmoothRadius(
@@ -156,8 +151,7 @@ class PauseView extends GetView<PauseController> {
                                         ),
                                       ),
                                     ),
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 16),
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
                                   ),
                                   child: Text(
                                     'Continue on ${controller.displayAppName}',
@@ -178,7 +172,10 @@ class PauseView extends GetView<PauseController> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text("Powered By Detach" , style: TextStyle(fontSize: 14 , fontWeight: FontWeight.w900),),
+                                Text(
+                                  "Powered By Detach",
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+                                ),
                               ],
                             ),
                           ),

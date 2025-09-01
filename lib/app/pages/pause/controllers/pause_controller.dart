@@ -6,7 +6,7 @@ import 'package:detach/services/analytics_service.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
+
 import 'package:detach/app/routes/app_routes.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -287,7 +287,7 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
       } else if (call.method == 'initializePause') {
         final packageName = call.arguments['packageName'];
         final isTimerExpired = call.arguments['timerExpired'] ?? false;
-        final timerState = call.arguments['timerState'];
+        // final timerState = call.arguments['timerState']; // Unused for now
         print('DEBUG: Method channel initializePause called with isTimerExpired: $isTimerExpired');
         _initializeFromAndroid(packageName, isTimerExpired);
       }
@@ -561,14 +561,19 @@ class PauseController extends GetxController with GetTickerProviderStateMixin {
           lockedPackageName!,
           allApps,
         );
-        attemptsToday.value = await AppCountService.getAppCount(
+                attemptsToday.value = await AppCountService.getAppCount(
           lockedPackageName!,
         );
       } catch (e) {
         appName.value = lockedPackageName!;
+        print('Error initializing app data: $e');
       }
     }
   }
+
+
+
+  
 
   @override
   void onClose() {

@@ -11,41 +11,48 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:detach/app/pages/pause/views/pause_view.dart';
 import 'package:detach/app/pages/pause/bindings/pause_binding.dart';
+import 'package:clarity_flutter/clarity_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   // Set preferred orientations to portrait only
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+
   // Initialize Firebase with generated options
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   // Initialize services
   final themeService = Get.put(ThemeService());
   Get.put(AnalyticsService());
   Get.put(AppTrackingService());
 
-      // Initialize database immediately to create all tables
-    final databaseService = DatabaseService();
-    await databaseService.initializeDatabase();
-    
-    // Debug: Check what's in the locked apps table
-    print('=== DEBUGGING LOCKED APPS TABLE ===');
-    final allApps = await databaseService.debugGetAllLockedApps();
-    print('Total apps in locked_apps table: ${allApps.length}');
-    
-    // Remove test app if it exists
-    await databaseService.deleteLockedApp('com.test.app');
-    print('Removed test app from database');
-    print('=== END DEBUG ===');
+  // Initialize database immediately to create all tables
+  final databaseService = DatabaseService();
+  await databaseService.initializeDatabase();
+  await databaseService.deleteLockedApp('com.test.app');
+
   // Initialize status bar style
   themeService.updateStatusBarStyle();
-  runApp(const DetachApp());
+
+  // Initialize Clarity configuration
+  final clarityConfig = ClarityConfig(
+    projectId: 'st5qo3fb0n',
+    logLevel: LogLevel.Verbose, // Use LogLevel.Verbose for debugging
+  );
+
+  runApp(ClarityWidget(
+    app: const DetachApp(),
+    clarityConfig: clarityConfig,
+  ));
 }
 
 class DetachApp extends StatelessWidget {
   const DetachApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
